@@ -38,13 +38,14 @@ void Engine::Launch()
     Clock clock;
     while (viewport->IsOpen())
     {
+        clock.Tick();
+        updateDebugStats(clock.GetDelta());
 
-        auto [global_time, delta_time] = clock.Tick();
-        updateDebugStats(delta_time);
-
-        Input& input = viewport->UpdateInput();
-        Graphics& graphics = viewport->GetGraphics();
-        State state(clock, input, graphics);
+        Input input = viewport->UpdateInput();
+        Graphics graphics = viewport->GetGraphics();
+        graphics.Clear(Color::BLACK);
+        Dimension viewarea_dim = Dimension(graphics.GetWidth(), graphics.GetHeight());
+        State state(clock, input, graphics, viewarea_dim);
         for (auto &extension : m_extensions)
         {
             extension->OnUpdate(state);

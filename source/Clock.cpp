@@ -9,8 +9,7 @@ Clock::Clock()
     m_last_time = m_start_time;
 }
 
-// @returns (global time, delta time)
-std::pair<float, float> Clock::Tick()
+void Clock::Tick()
 {
     std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = now.time_since_epoch();
@@ -20,8 +19,6 @@ std::pair<float, float> Clock::Tick()
 
     m_time = current_time - m_start_time;
     m_delta = delta_time;
-
-    return {(float)(current_time - m_start_time), (float)delta_time};
 }
 
 double Clock::GetTime() const

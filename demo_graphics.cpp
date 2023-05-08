@@ -1,98 +1,89 @@
+#include <Console.h>
 #include <Engine.h>
+#include <fstream>
 #include <math.h>
 
-bool PointInsideOf(unsigned x, unsigned y, unsigned a, unsigned b, unsigned w, unsigned h)
+struct TransformGraphics
 {
-    return x >= a && x <= a + w && y >= b && y <= b + h;
-}
+    float rotation = 0;
+    float scale = 1;
+    float x = 0;
+    float y = 0;
 
-struct UserInterface
-{
-    Pixel background = Color::BLACK;
-    Pixel foreground = Color::WHITE;
-    Pixel border = Color::GRAY;
-    Pixel highlight = Color::WHITE;
+    Graphics &graphics;
 
-    bool is_vertical = false;
-    unsigned x_offset = 0;
-    unsigned y_offset = 0;
-
-    State &state;
-
-    UserInterface(State &state) : state(state)
+    TransformGraphics(Graphics &graphics) : graphics(graphics)
     {
     }
 
-    void AdvanceOffset(unsigned x, unsigned y)
+    void DrawImage(Image &image)
     {
-        if (is_vertical)
-        {
-            y_offset += y;
-        }
-        else
-        {
-            x_offset += x;
-        }
-    }
+        unsigned draw_width = image.GetWidth() * scale;
+        unsigned draw_height = image.GetHeight() * scale;
+        float cos_theta = cos(rotation);
+        float sin_theta = sin(rotation);
 
-    bool Button(unsigned width, unsigned height)
-    {
-        bool isInside = PointInsideOf(state.input.mouse_x, state.input.mouse_y, x_offset, y_offset, width, height);
-        bool isClicked = state.input.mouse_left && isInside;
-
-        if (isClicked)
-        {
-            state.graphics.SetColor(highlight);
-            state.graphics.FillRect(x_offset, y_offset, width, height);
+        for (int dx = 0; dx < draw_width; dx++) {
+            for (int dy = 0; dy < draw_height; dy++) {
+                float u = (float)dx / (float)draw_width;
+                float v = (float)dy / (float)draw_height;
+                float draw_x = dx * cos_theta - dy * sin_theta;
+                float draw_y = dx * sin_theta + dy * cos_theta;
+                draw_x += this->x;
+                draw_y += this->y;
+                Pixel color = image.SamplePixel(u, v);
+                graphics.DrawPixel(color, draw_x, draw_y);
+            }
         }
-        else
-        {
-            state.graphics.SetColor(background);
-            state.graphics.FillRect(x_offset, y_offset, width, height);
-        }
-
-        if (isInside)
-        {
-            state.graphics.SetColor(highlight);
-            state.graphics.DrawRect(x_offset, y_offset, width, height);
-        }
-        else
-        {
-            state.graphics.SetColor(border);
-            state.graphics.DrawRect(x_offset, y_offset, width, height);
-        }
-        
-        AdvanceOffset(width, height);
-        return isClicked;
     }
 };
 
 struct GraphicsTest : Extension
 {
-    GraphicsTest()
+    ConsolePanel console_panel = ConsolePanel(50, 50, 300, 400);
+    bool panel_toggle = false;
+    Font mono_font;
+    float delta = 0;
+    GraphicsTest() : mono_font(Font::LoadFromBin("assets/font/dogica.bin", 8))
     {
     }
 
     void OnUpdate(State state) override
     {
-        state.graphics.Clear(Color::BLACK);
-        std::cout << "MouseX" << state.input.mouse_x << std::endl;
-        std::cout << "MouseY" << state.input.mouse_y << std::endl;
-        UserInterface ui(state);
-        if (ui.Button(20, 20)) {
-            std::cout << "Clicked" << std::endl;
+        state.graphics.Clear(Color::GRAY);
+
+        FontGraphics font_graphics(state.graphics, mono_font);
+        font_graphics.SetDisplayWidth(8);
+
+        bool ctrl_tilde = state.input.IsHeld(Key::LControl) && state.input.IsPressed(Key::Tilde);
+        if (ctrl_tilde)
+        {
+            panel_toggle = !panel_toggle;
         }
 
-        if (ui.Button(20, 20)) {
-            std::cout << "Clicked" << std::endl;
+        if (panel_toggle)
+        {
+            console_panel.OnUpdate(state, font_graphics);
         }
+
+        TransformGraphics transform_graphics(state.graphics);
+        delta += state.chrono.GetDelta();
+        transform_graphics.rotation = delta;
+        transform_graphics.scale = 0.5;
+        transform_graphics.x = 100;
+        transform_graphics.y = 100;
+        std::shared_ptr<Image> image = std::make_shared<Image>(100, 100);
+        Graphics image_graphics(image);
+        image_graphics.Clear(Color::RED);
+        image_graphics.FillRect(Color::BLUE, 10, 10, 80, 80);
+        transform_graphics.DrawImage(*image);
     }
 };
 
 int main(void)
 {
     std::shared_ptr<GraphicsTest> test = std::make_shared<GraphicsTest>();
-    Engine engine(1200, 800, 100, 100);
+    Engine engine(1300, 1000, 300, 300);
     engine.AddExtension(test);
     engine.Launch();
 }

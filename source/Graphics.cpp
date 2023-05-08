@@ -7,23 +7,17 @@ Graphics::Graphics(std::shared_ptr<Image> image)
     m_image = image;
 }
 
-void Graphics::SetColor(const Pixel &pixel)
+void Graphics::Clear(Pixel color)
 {
-    m_color = pixel;
+    m_image->Clear(color);
 }
 
-void Graphics::Clear(const Pixel &pixel)
+void Graphics::DrawPixel(Pixel color, unsigned x, unsigned y)
 {
-    SetColor(pixel);
-    m_image->Clear(m_color);
+    m_image->SetPixel(x, y, color);
 }
 
-void Graphics::DrawPixel(unsigned x, unsigned y)
-{
-    m_image->SetPixel(x, y, m_color);
-}
-
-void Graphics::DrawLine(unsigned x0, unsigned y0, unsigned x1, unsigned y1)
+void Graphics::DrawLine(Pixel color, unsigned x0, unsigned y0, unsigned x1, unsigned y1)
 {
     // Bresenham's line algorithm
     int dx = abs(x1 - x0);
@@ -35,7 +29,7 @@ void Graphics::DrawLine(unsigned x0, unsigned y0, unsigned x1, unsigned y1)
 
     while (true)
     {
-        DrawPixel(x0, y0);
+        DrawPixel(color, x0, y0);
 
         if (x0 == x1 && y0 == y1)
         {
@@ -58,22 +52,22 @@ void Graphics::DrawLine(unsigned x0, unsigned y0, unsigned x1, unsigned y1)
     }
 }
 
-void Graphics::DrawRect(unsigned x, unsigned y, unsigned width, unsigned height)
+void Graphics::DrawRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height)
 {
     for (unsigned i = 0; i < width; i++)
     {
-        DrawPixel(x + i, y);
-        DrawPixel(x + i, y + height - 1);
+        DrawPixel(color, x + i, y);
+        DrawPixel(color, x + i, y + height - 1);
     }
 
     for (unsigned i = 0; i < height; i++)
     {
-        DrawPixel(x, y + i);
-        DrawPixel(x + width - 1, y + i);
+        DrawPixel(color, x, y + i);
+        DrawPixel(color, x + width - 1, y + i);
     }
 }
 
-void Graphics::DrawCircle(unsigned x, unsigned y, unsigned radius)
+void Graphics::DrawCircle(Pixel color, unsigned x, unsigned y, unsigned radius)
 {
     // Draw Octants
     int x0 = radius;
@@ -82,14 +76,14 @@ void Graphics::DrawCircle(unsigned x, unsigned y, unsigned radius)
 
     while (x0 >= y0)
     {
-        DrawPixel(x + x0, y + y0);
-        DrawPixel(x + y0, y + x0);
-        DrawPixel(x - y0, y + x0);
-        DrawPixel(x - x0, y + y0);
-        DrawPixel(x - x0, y - y0);
-        DrawPixel(x - y0, y - x0);
-        DrawPixel(x + y0, y - x0);
-        DrawPixel(x + x0, y - y0);
+        DrawPixel(color, x + x0, y + y0);
+        DrawPixel(color, x + y0, y + x0);
+        DrawPixel(color, x - y0, y + x0);
+        DrawPixel(color, x - x0, y + y0);
+        DrawPixel(color, x - x0, y - y0);
+        DrawPixel(color, x - y0, y - x0);
+        DrawPixel(color, x + y0, y - x0);
+        DrawPixel(color, x + x0, y - y0);
 
         y0++;
         err += 1 + 2 * y0;
@@ -102,18 +96,18 @@ void Graphics::DrawCircle(unsigned x, unsigned y, unsigned radius)
     }
 }
 
-void Graphics::FillRect(unsigned x, unsigned y, unsigned width, unsigned height)
+void Graphics::FillRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height)
 {
     for (unsigned i = 0; i < width; i++)
     {
         for (unsigned j = 0; j < height; j++)
         {
-            DrawPixel(x + i, y + j);
+            DrawPixel(color, x + i, y + j);
         }
     }
 }
 
-void Graphics::FillCircle(unsigned x, unsigned y, unsigned radius)
+void Graphics::FillCircle(Pixel color, unsigned x, unsigned y, unsigned radius)
 {
     // Draw Octants
     int x0 = radius;
@@ -122,10 +116,10 @@ void Graphics::FillCircle(unsigned x, unsigned y, unsigned radius)
 
     while (x0 >= y0)
     {
-        DrawLine(x - x0, y + y0, x + x0, y + y0);
-        DrawLine(x - y0, y + x0, x + y0, y + x0);
-        DrawLine(x - x0, y - y0, x + x0, y - y0);
-        DrawLine(x - y0, y - x0, x + y0, y - x0);
+        DrawLine(color, x - x0, y + y0, x + x0, y + y0);
+        DrawLine(color, x - y0, y + x0, x + y0, y + x0);
+        DrawLine(color, x - x0, y - y0, x + x0, y - y0);
+        DrawLine(color, x - y0, y - x0, x + y0, y - x0);
 
         y0++;
         err += 1 + 2 * y0;
@@ -146,8 +140,8 @@ void Graphics::DrawImage(const Image &image, unsigned x, unsigned y, unsigned w,
         {
             float u = (float)i / (float)w;
             float v = (float)j / (float)h;
-            SetColor(image.SamplePixel(u, v));
-            DrawPixel(x + i, y + j);
+            Pixel color = image.SamplePixel(u, v);
+            DrawPixel(color, x + i, y + j);
         }
     }
 }

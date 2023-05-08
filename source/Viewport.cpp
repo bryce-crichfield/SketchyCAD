@@ -82,7 +82,19 @@ void Viewport::SetTitle(const std::string &title)
     glfwSetWindowTitle((GLFWwindow *)m_data, title.c_str());
 }
 
-Viewport::Viewport(unsigned width, unsigned height, unsigned viewarea_width, unsigned viewarea_height) throw() 
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
+{
+    InputState *input_state = (InputState *)glfwGetWindowUserPointer(window);
+    input_state->scroll_delta += yoffset;
+}
+
+void char_callback(GLFWwindow *window, unsigned int codepoint)
+{
+    InputState *input_state = (InputState *)glfwGetWindowUserPointer(window);
+    input_state->char_buffer.push_back(codepoint);
+}
+
+Viewport::Viewport(unsigned width, unsigned height, unsigned viewarea_width, unsigned viewarea_height) throw()
     : m_width(width), m_height(height)
 {
     if (!glfwInit())
@@ -111,6 +123,17 @@ Viewport::Viewport(unsigned width, unsigned height, unsigned viewarea_width, uns
     glViewport(0, 0, width, height);
 
     this->framebuffer = std::make_unique<Image>(viewarea_width, viewarea_height);
+
+    // Set glfw user pointer to this viewport
+    glfwSetWindowUserPointer((GLFWwindow *)m_data, &this->m_input_state);
+
+    // Register callback for scroll input
+    glfwSetScrollCallback((GLFWwindow *)m_data, scroll_callback);
+
+    // Register callback for text entry
+    glfwSetCharCallback((GLFWwindow *)m_data, char_callback);
+
+    glfwSetInputMode((GLFWwindow *)m_data, GLFW_STICKY_KEYS, GLFW_FALSE);
 }
 
 Viewport::~Viewport()
@@ -120,15 +143,15 @@ Viewport::~Viewport()
 
 void Viewport::Flush()
 {
+    m_input_state.Clear();
     glfwSwapBuffers((GLFWwindow *)m_data);
     glfwPollEvents();
-
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
 void Viewport::UpdateFramebuffer()
 {
-    Image& viewarea_image = *this->framebuffer;
+    Image &viewarea_image = *this->framebuffer;
     // 1.) Create a texture and bind the image data to it
     GLuint texture;
     glGenTextures(1, &texture);
@@ -177,82 +200,86 @@ void Viewport::UpdateFramebuffer()
     glPopMatrix();
 }
 
-Input& Viewport::UpdateInput()
+Input Viewport::UpdateInput()
 {
+    // TODO: Mouse picking breaks down if the viewarea is larger than the viewport
+    m_input_state.Update();
+
     unsigned viewarea_width = this->framebuffer->GetWidth();
     unsigned viewarea_height = this->framebuffer->GetHeight();
-    // Get mouse coordinate in viewarea space
+    bool mouse_inside_viewarea = false;
+    // Calculate mouse position in viewarea and copy to input state ----------------------------------------------------
     {
-        double mouse_x, mouse_y;
+        double mouse_x, mouse_y = 0;
         glfwGetCursorPos((GLFWwindow *)m_data, &mouse_x, &mouse_y);
         double screen_aspect = m_width / (double)m_height;
         double viewarea_aspect = viewarea_width / (double)viewarea_height;
+        bool screen_is_wider_than_viewarea = screen_aspect > viewarea_aspect;
 
-        if (screen_aspect > viewarea_aspect)
+        if (screen_is_wider_than_viewarea)
         {
-            // Screen is wider than viewarea
             double viewarea_calculated_width = m_height * viewarea_aspect;
             double viewarea_start_x = (m_width - viewarea_calculated_width) / 2.0f;
             double viewarea_end_x = viewarea_start_x + viewarea_calculated_width;
 
-            if (mouse_x < viewarea_start_x || mouse_x > viewarea_end_x)
+            bool is_mouse_x_inside_viewarea = mouse_x > viewarea_start_x && mouse_x < viewarea_end_x;
+            if (is_mouse_x_inside_viewarea)
             {
-                input.mouse_x = input.last_mouse_x;
-                input.mouse_y = input.last_mouse_y;
-            }
-            else
-            {
-                mouse_x = std::clamp(mouse_x, viewarea_start_x, viewarea_end_x);
-                mouse_y = std::clamp(mouse_y, 0.0, (double)m_height);
+                // mouse_x = std::clamp(mouse_x, viewarea_start_x, viewarea_end_x);
+                // mouse_y = std::clamp(mouse_y, 0.0, (double)m_height);
                 mouse_x -= viewarea_start_x;
-                input.last_mouse_x = input.mouse_x;
-                input.last_mouse_y = input.mouse_y;
-                input.mouse_x = (mouse_x / viewarea_calculated_width) * viewarea_width;
-                input.mouse_y = (mouse_y / m_height) * viewarea_height;
+                m_input_state.current_mouse_x = (mouse_x / viewarea_calculated_width) * viewarea_width;
+                m_input_state.current_mouse_y = (mouse_y / m_height) * viewarea_height;
+                mouse_inside_viewarea = true;
             }
         }
         else
         {
-            // Screen is taller than viewarea
             double viewarea_calculated_height = m_width / viewarea_aspect;
             double viewarea_start_x = (m_height - viewarea_calculated_height) / 2.0f;
             double viewarea_end_x = viewarea_start_x + viewarea_calculated_height;
-            
-            if (mouse_y < viewarea_start_x || mouse_y > viewarea_end_x)
+
+            bool is_mouse_y_inside_viewarea = mouse_y > viewarea_start_x && mouse_y < viewarea_end_x;
+            if (is_mouse_y_inside_viewarea)
             {
-                input.mouse_x = input.last_mouse_x;
-                input.mouse_y = input.last_mouse_y;
-            }
-            else
-            {
-                mouse_x = std::clamp(mouse_x, 0.0, (double)m_width);
-                mouse_y = std::clamp(mouse_y, viewarea_start_x, viewarea_end_x);
+                // mouse_x = std::clamp(mouse_x, 0.0, (double)m_width);
+                // mouse_y = std::clamp(mouse_y, viewarea_start_x, viewarea_end_x);
                 mouse_x = (mouse_x / m_width) * viewarea_width;
-                input.last_mouse_x = input.mouse_x;
-                input.last_mouse_y = input.mouse_y;
-                input.mouse_y -= viewarea_start_x;
-                input.mouse_y = (mouse_y / viewarea_calculated_height) * viewarea_height;
+                m_input_state.current_mouse_y -= viewarea_start_x;
+                m_input_state.current_mouse_x = (mouse_x / viewarea_width) * viewarea_width;
+                m_input_state.current_mouse_y = (mouse_y / viewarea_calculated_height) * viewarea_height;
+                mouse_inside_viewarea = true;
             }
         }
     }
-
-    // Copy the mouse and keyboard button states
+    // Copy the mouse and keyboard button states -----------------------------------------------------------------------
     {
-        input.mouse_left = glfwGetMouseButton((GLFWwindow *)m_data, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-        input.mouse_right = glfwGetMouseButton((GLFWwindow *)m_data, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+        if (mouse_inside_viewarea)
+        {
+            m_input_state.current_mouse[static_cast<unsigned char>(MouseButton::LEFT)] =
+                glfwGetMouseButton((GLFWwindow *)m_data, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 
-        for (int i = 0; i < 256; i++)
+            m_input_state.current_mouse[static_cast<unsigned char>(MouseButton::RIGHT)] =
+                glfwGetMouseButton((GLFWwindow *)m_data, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+
+            m_input_state.current_mouse[static_cast<unsigned char>(MouseButton::MIDDLE)] =
+                glfwGetMouseButton((GLFWwindow *)m_data, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS;
+        }
+
+        for (int i = 0; i < 512; i++)
         {
             Key key = mapGlfwKeyToCustomKeyEnum(i);
             int ordinal = static_cast<int>(key);
-            input.keys[ordinal] = glfwGetKey((GLFWwindow *)m_data, i) == GLFW_PRESS;
+
+            m_input_state.current_keys[ordinal] = glfwGetKey((GLFWwindow *)m_data, i) == GLFW_PRESS;
         }
     }
+    // -----------------------------------------------------------------------------------------------------------------
 
-    return input;
+    return Input(m_input_state);
 }
 
-Graphics& Viewport::GetGraphics()
+Graphics Viewport::GetGraphics()
 {
     return this->framebuffer->GetGraphics();
 }

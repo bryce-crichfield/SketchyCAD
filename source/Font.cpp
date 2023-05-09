@@ -72,7 +72,7 @@ void FontGraphics::DrawGlyph(Pixel color, unsigned char character, unsigned x, u
             auto glyph_pixel = font.GetGlyph(character, pixel_x, pixel_y);
             if (glyph_pixel)
             {
-                graphics.DrawPixel(color, x + xi, y + yi);
+                graphics.SetPixel(color, x + xi, y + yi);
             }
         }
     }
@@ -86,4 +86,10 @@ void FontGraphics::DrawString(Pixel color, std::string str, unsigned x, unsigned
         unsigned write_x = x + i * width;
         DrawGlyph(color, str[i], write_x, y);
     }
+}
+
+Vector2 FontGraphics::MeasureString(std::string str) const
+{
+    unsigned width = m_display_width;
+    return Vector2(str.size() * width, width);
 }

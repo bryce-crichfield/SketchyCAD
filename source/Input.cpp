@@ -36,6 +36,7 @@ void InputState::Update()
 
     last_mouse_x = current_mouse_x;
     last_mouse_y = current_mouse_y;
+
 }
 
 void InputState::Clear() {

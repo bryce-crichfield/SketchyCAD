@@ -21,6 +21,9 @@ Vector2 Vector2::operator/(float scalar) const {
     return Vector2(x / scalar, y / scalar);
 }
 
+bool Vector2::IsInBounds(Vector2 point, Vector2 position, Vector2 size) {
+    return point.x > position.x && point.x < position.x + size.x && point.y > position.y && point.y < position.y + size.y;
+}
 
 Matrix3::Matrix3() {
     for (int i = 0; i < 9; i++) {

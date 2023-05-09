@@ -44,8 +44,7 @@ void Engine::Launch()
         Input input = viewport->UpdateInput();
         Graphics graphics = viewport->GetGraphics();
         graphics.Clear(Color::BLACK);
-        Dimension viewarea_dim = Dimension(graphics.GetWidth(), graphics.GetHeight());
-        State state(clock, input, graphics, viewarea_dim);
+        State state(clock, input, graphics);
         for (auto &extension : m_extensions)
         {
             extension->OnUpdate(state);

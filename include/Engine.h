@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -14,8 +15,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <algorithm>
-#include <list>
 
 struct Pixel;
 class Image;
@@ -32,6 +31,10 @@ class Engine;
 
 class Font;
 class FontGraphics;
+class FontManager;
+
+struct Vector2;
+struct Transform;
 
 struct Pixel
 {
@@ -84,28 +87,70 @@ class Image
     Graphics &GetGraphics();
 };
 
+struct Transform
+{
+    float x, y, scale, rotation;
+
+    Transform(float x, float y, float scale, float rotation);
+    Transform();
+
+    static Transform Identity();
+    Transform& Translate(float x, float y);
+    Transform& Scale(float scale);
+    Transform& Rotate(float rotation);
+
+    Vector2 Apply(Vector2 point) const;
+
+    float GetX() const
+    {
+        return x;
+    }
+
+    float GetY() const
+    {
+        return y;
+    }
+
+    float GetScale() const
+    {
+        return scale;
+    }
+
+    float GetRotation() const
+    {
+        return rotation;
+    }
+};
+
 class Graphics
 {
     std::shared_ptr<Image> m_image;
+    std::stack<Transform> m_transform_stack;
 
   public:
     Graphics(std::shared_ptr<Image> image);
     ~Graphics() = default;
 
+    unsigned GetWidth() const;
+    unsigned GetHeight() const;
+
     void Clear(Pixel color = Color::BLACK);
 
-    void DrawPixel(Pixel color, unsigned x, unsigned y);
+    // Does not apply transform
+    void SetPixel(Pixel color, unsigned x, unsigned y);
+    
     void DrawLine(Pixel color, unsigned x0, unsigned y0, unsigned x1, unsigned y1);
     void DrawRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height);
     void DrawCircle(Pixel color, unsigned x, unsigned y, unsigned radius);
-
     void FillRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height);
     void FillCircle(Pixel color, unsigned x, unsigned y, unsigned radius);
 
+    // Todo: Move to dedicated image graphics class since rasters are tricky to do correctly
     void DrawImage(const Image &image, unsigned x, unsigned y, unsigned w, unsigned h);
 
-    unsigned GetWidth() const;
-    unsigned GetHeight() const;
+    void PushTransform(const Transform &transform);
+    Transform PopTransform();
+    Transform GetTransform() const;
 };
 
 struct Chronometer
@@ -161,11 +206,10 @@ struct State
     Chronometer &chrono;
     Input &input;
     Graphics &graphics;
-    Dimension viewport;
 
     // Exports common engine components to extensions for use
-    State(Chronometer &chrono, Input &input, Graphics &graphics, Dimension dim)
-        : chrono(chrono), input(input), graphics(graphics), viewport(dim)
+    State(Chronometer &chrono, Input &input, Graphics &graphics)
+        : chrono(chrono), input(input), graphics(graphics)
     {
     }
 };
@@ -253,18 +297,20 @@ struct Counter
     {
         return value;
     }
-    
-    void Reset() {
+
+    void Reset()
+    {
         value = range.first;
     }
-
 };
-
 
 struct Debouncer
 {
-    enum State {
-        Idle, Pressed, Held
+    enum State
+    {
+        Idle,
+        Pressed,
+        Held
     };
 
     State state = Idle;
@@ -276,27 +322,34 @@ struct Debouncer
     {
     }
 
-    void Update(Input &input, Chronometer &chrono) {
+    void Update(Input &input, Chronometer &chrono)
+    {
         switch (state)
         {
         case Idle:
-            if (input.IsPressed(matching_key)) {
+            if (input.IsPressed(matching_key))
+            {
                 state = Pressed;
                 current_timer = 0.0f;
             }
             break;
         case Pressed:
-            if (input.IsHeld(matching_key)) {
+            if (input.IsHeld(matching_key))
+            {
                 current_timer += chrono.GetDelta();
-                if (current_timer > 0.35f) {
+                if (current_timer > 0.35f)
+                {
                     state = Held;
                 }
-            } else {
+            }
+            else
+            {
                 state = Idle;
             }
             break;
         case Held:
-            if (input.IsReleased(matching_key)) {
+            if (input.IsReleased(matching_key))
+            {
                 state = Idle;
             }
             break;
@@ -305,7 +358,8 @@ struct Debouncer
         }
     }
 
-    bool IsHeld() const {
+    bool IsHeld() const
+    {
         return state == Held;
     }
 };
@@ -317,13 +371,16 @@ class InputText
     std::string m_text;
 
   public:
-    InputText() : m_debouncer(Key::Backspace) { }
+    InputText() : m_debouncer(Key::Backspace)
+    {
+    }
 
     void Update(Input &input, Chronometer &chrono)
     {
         m_text += input.GetText();
         m_debouncer.Update(input, chrono);
-        if (m_debouncer.IsHeld()) {
+        if (m_debouncer.IsHeld())
+        {
             m_text.pop_back();
         }
     }
@@ -396,9 +453,12 @@ struct Vector2
     Vector2 operator-(const Vector2 &other) const;
     Vector2 operator*(float scalar) const;
     Vector2 operator/(float scalar) const;
-    Vector2 Rotate(float angle) const {
+    Vector2 Rotate(float angle) const
+    {
         return Vector2(x * cos(angle) - y * sin(angle), x * sin(angle) + y * cos(angle));
     }
+
+    static bool IsInBounds(Vector2 point, Vector2 position, Vector2 size);
 };
 
 struct Matrix3
@@ -450,5 +510,16 @@ class FontGraphics
     }
     void DrawGlyph(Pixel color, unsigned char character, unsigned x, unsigned y);
     void DrawString(Pixel color, std::string str, unsigned x, unsigned y);
+    Vector2 MeasureString(std::string str) const;
 };
+
+class FontManager 
+{
+    std::unordered_map<std::string, std::unique_ptr<Font>> m_fonts;
+
+  public:
+    FontManager();
+    Font &GetFont(const std::string &name);
+};
+
 // =====================================================================================================================

@@ -17,7 +17,7 @@ void Graphics::SetPixel(Pixel color, unsigned x, unsigned y)
     m_image->SetPixel(x, y, color);
 }
 
-void Graphics::DrawLine(Pixel color, unsigned x0_in, unsigned y0_in, unsigned x1_in, unsigned y1_in)
+void Graphics::DrawLine(Pixel color, float x0_in, float y0_in, float x1_in, float y1_in)
 {
     Transform transform = GetTransform();
     Vector2 p0 = transform.Apply(Vector2(x0_in, y0_in));
@@ -83,7 +83,7 @@ void Graphics::DrawRect(Pixel color, unsigned x_in, unsigned y_in, unsigned widt
     }
 }
 
-void Graphics::DrawCircle(Pixel color, unsigned x_in, unsigned y_in, unsigned radius_in)
+void Graphics::DrawCircle(Pixel color, float x_in, float y_in, float radius_in)
 {
     Transform transform = GetTransform();
     Vector2 position = transform.Apply(Vector2(x_in, y_in));

@@ -18,6 +18,7 @@ Engine::Engine(unsigned view_width, unsigned view_height, unsigned buffer_width,
     try
     {
         viewport = std::make_unique<Viewport>(view_width, view_height, buffer_width, buffer_height);
+        m_fonts = std::make_unique<FontManager>();
     }
     catch (const std::string &error)
     {
@@ -34,7 +35,13 @@ Engine::~Engine()
 
 void Engine::Launch()
 {
-    // TODO: Start all extensions
+    StaticContext context(*m_fonts);
+
+    for (auto &extension : m_extensions)
+    {
+        extension->OnStart(context);
+    }
+
     Clock clock;
     while (viewport->IsOpen())
     {
@@ -44,7 +51,8 @@ void Engine::Launch()
         Input input = viewport->UpdateInput();
         Graphics graphics = viewport->GetGraphics();
         graphics.Clear(Color::BLACK);
-        State state(clock, input, graphics);
+
+        State state(clock, input, graphics, context);
         for (auto &extension : m_extensions)
         {
             extension->OnUpdate(state);

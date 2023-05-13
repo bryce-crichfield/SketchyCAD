@@ -43,7 +43,7 @@ void Window::Update(FocusManager &manager, State &state, FontGraphics &font_grap
 
         OnUpdate(manager, state, font_graphics, pallette);
 
-        // Update the root panel
+        // Update the root panel to match the window's position and size
         root_panel->SetPosition(GetPosition().x, GetPosition().y);
         root_panel->SetSize(GetSize().x, GetSize().y);
         root_panel->Update(state);
@@ -141,13 +141,12 @@ void ConsoleWindow::OnUpdate(FocusManager &manager, State &state, FontGraphics &
     unsigned y = GetPosition().y;
     unsigned width = GetSize().x;
     unsigned height = GetSize().y;
-    unsigned title_bar_height = title_bar.GetSize().y;
 
     // Draw the background
     state.graphics.FillRect(pallette.background, x, y, width, height);
     state.graphics.DrawRect(pallette.border, x, y, width, height);
 
-    TextRenderer text_render(x + padding, y + padding, width - padding, height - title_bar_height - padding, padding,
+    TextRenderer text_render(x + padding, y + padding, width - padding, height - padding, padding,
                              scroll_pixel_offset);
     text_render.DrawText(pallette.foreground, text_type.GetText(), font_graphics);
 

@@ -95,9 +95,9 @@ struct Transform
     Transform();
 
     static Transform Identity();
-    Transform& Translate(float x, float y);
-    Transform& Scale(float scale);
-    Transform& Rotate(float rotation);
+    Transform &Translate(float x, float y);
+    Transform &Scale(float scale);
+    Transform &Rotate(float rotation);
 
     Vector2 Apply(Vector2 point) const;
 
@@ -120,6 +120,14 @@ struct Transform
     {
         return rotation;
     }
+
+    Transform GetInverse() const
+    {
+        Transform inverse;
+        inverse.Translate(x * -1, y * -1);
+        // inverse.Scale(1 / scale);
+        return inverse;
+    }
 };
 
 class Graphics
@@ -138,10 +146,10 @@ class Graphics
 
     // Does not apply transform
     void SetPixel(Pixel color, unsigned x, unsigned y);
-    
-    void DrawLine(Pixel color, unsigned x0, unsigned y0, unsigned x1, unsigned y1);
+
+    void DrawLine(Pixel color, float x0, float y0, float x1, float y1);
     void DrawRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height);
-    void DrawCircle(Pixel color, unsigned x, unsigned y, unsigned radius);
+    void DrawCircle(Pixel color, float x, float y, float radius);
     void FillRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height);
     void FillCircle(Pixel color, unsigned x, unsigned y, unsigned radius);
 
@@ -201,15 +209,25 @@ struct Dimension
     }
 };
 
+struct StaticContext
+{
+    FontManager &fonts;
+
+    StaticContext(FontManager &fonts) : fonts(fonts)
+    {
+    }
+};
+
 struct State
 {
     Chronometer &chrono;
     Input &input;
     Graphics &graphics;
+    StaticContext &static_context;
 
     // Exports common engine components to extensions for use
-    State(Chronometer &chrono, Input &input, Graphics &graphics)
-        : chrono(chrono), input(input), graphics(graphics)
+    State(Chronometer &chrono, Input &input, Graphics &graphics, StaticContext &static_context)
+        : chrono(chrono), input(input), graphics(graphics), static_context(static_context)
     {
     }
 };
@@ -420,7 +438,7 @@ class Viewport
 
 struct Extension
 {
-    virtual void OnStart(){};
+    virtual void OnStart(StaticContext &static_context){};
     virtual void OnUpdate(State state){};
     virtual void OnShutdown(){};
 };
@@ -429,6 +447,7 @@ class Engine
 {
     std::unique_ptr<Viewport> viewport;
     std::vector<std::shared_ptr<Extension>> m_extensions;
+    std::unique_ptr<FontManager> m_fonts;
 
     // Debug Stats
     double accumulated_delta_time = 0;
@@ -451,14 +470,18 @@ struct Vector2
 
     Vector2 operator+(const Vector2 &other) const;
     Vector2 operator-(const Vector2 &other) const;
+    Vector2 operator*(const Vector2 &other) const;
+    Vector2 operator/(const Vector2 &other) const;
     Vector2 operator*(float scalar) const;
     Vector2 operator/(float scalar) const;
     Vector2 Rotate(float angle) const
     {
         return Vector2(x * cos(angle) - y * sin(angle), x * sin(angle) + y * cos(angle));
     }
-
     static bool IsInBounds(Vector2 point, Vector2 position, Vector2 size);
+    float Length() const {
+        return sqrt(x * x + y * y);
+    }
 };
 
 struct Matrix3
@@ -513,13 +536,24 @@ class FontGraphics
     Vector2 MeasureString(std::string str) const;
 };
 
-class FontManager 
+class FontManager
 {
     std::unordered_map<std::string, std::unique_ptr<Font>> m_fonts;
 
   public:
-    FontManager();
-    Font &GetFont(const std::string &name);
+    FontManager() = default;
+
+    void LoadFont(const std::string &name, const char *filename, unsigned glyph_width = 16)
+    {
+        // TODO: Add error handling
+        m_fonts[name] = std::make_unique<Font>(Font::LoadFromBin(filename, glyph_width));
+    };
+
+    Font &GetFont(const std::string &name)
+    {
+        // TODO: Add error handling
+        return *m_fonts[name];
+    }
 };
 
 // =====================================================================================================================

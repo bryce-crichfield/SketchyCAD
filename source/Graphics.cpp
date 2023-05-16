@@ -191,6 +191,16 @@ unsigned Graphics::GetHeight() const
     return m_image->GetHeight();
 }
 
+Vector2 Graphics::GetCenter() const
+{
+    return Vector2(GetWidth() / 2.0f, GetHeight() / 2.0f);
+}
+
+Vector2 Graphics::GetDimensions() const
+{
+    return Vector2(GetWidth(), GetHeight());
+}
+
 void Graphics::PushTransform(const Transform &transform)
 {
     m_transform_stack.push(transform);

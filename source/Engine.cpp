@@ -1,24 +1,10 @@
 #include <Engine.h>
 
-void Engine::updateDebugStats(double delta_time)
-{
-    accumulated_delta_time += delta_time;
-    accumlated_updates_count++;
-    if (accumlated_updates_count > 60)
-    {
-        double average_delta_time = accumulated_delta_time / accumlated_updates_count;
-        viewport->SetTitle("FPS: " + std::to_string(1.0 / average_delta_time));
-        accumulated_delta_time = 0;
-        accumlated_updates_count = 0;
-    }
-}
-
 Engine::Engine(unsigned view_width, unsigned view_height, unsigned buffer_width, unsigned buffer_height)
 {
     try
     {
         viewport = std::make_unique<Viewport>(view_width, view_height, buffer_width, buffer_height);
-        m_fonts = std::make_unique<FontManager>();
     }
     catch (const std::string &error)
     {
@@ -33,37 +19,24 @@ Engine::~Engine()
     // TODO: Shutdown all extensions
 }
 
-void Engine::Launch()
+void Engine::Launch(Program &program)
 {
-    StaticContext context(*m_fonts);
-
-    for (auto &extension : m_extensions)
+    bool is_started = false;
+    do
     {
-        extension->OnStart(context);
-    }
-
-    Clock clock;
-    while (viewport->IsOpen())
-    {
-        clock.Tick();
-        updateDebugStats(clock.GetDelta());
-
+        Clock clock;
+        StaticContext context(m_font_manager, m_output_stream, m_window_manager, m_pallette);
         Input input = viewport->UpdateInput();
         Graphics graphics = viewport->GetGraphics();
-        graphics.Clear(Color::BLACK);
-
         State state(clock, input, graphics, context);
-        for (auto &extension : m_extensions)
-        {
-            extension->OnUpdate(state);
-        }
-
+        if (!is_started) {
+            program.OnStart(state);
+            is_started = true;
+        } 
+        program.OnUpdate(state);
+        m_window_manager.Update(state);
         viewport->UpdateFramebuffer();
         viewport->Flush();
-    }
-}
-
-void Engine::AddExtension(std::shared_ptr<Extension> extension)
-{
-    m_extensions.push_back(extension);
+        // m_output_stream.Flush();
+    } while (viewport->IsOpen());
 }

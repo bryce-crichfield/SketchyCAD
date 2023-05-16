@@ -134,6 +134,7 @@ Viewport::Viewport(unsigned width, unsigned height, unsigned viewarea_width, uns
     glfwSetCharCallback((GLFWwindow *)m_data, char_callback);
 
     glfwSetInputMode((GLFWwindow *)m_data, GLFW_STICKY_KEYS, GLFW_FALSE);
+    glfwSetInputMode((GLFWwindow *)m_data, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 }
 
 Viewport::~Viewport()

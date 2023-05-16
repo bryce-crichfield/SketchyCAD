@@ -59,7 +59,8 @@
     "ranges": "cpp",
     "list": "cpp",
     "codecvt": "cpp",
-    "fstream": "cpp"
+    "fstream": "cpp",
+    "set": "cpp"
   },
   "files.exclude": {
     "**/.git": true,
@@ -69,13 +70,16 @@
     "**/.DS_Store": true,
     "**/Thumbs.db": true,
     "ext": true,
-    ".vscode": false,
-    "bin": false
+    ".vscode": true,
+    "bin": true,
+    "build": true,
+    "CMakeLists.txt": false,
+    "build.sh": false
   },
   "explorerExclude.backup": {},
   "workbench.colorCustomizations": {
-    "editor.background": "#151515",
-    "editor.lineHighlightBorder": "#808080",
-    "editor.lineHighlightBackground": "#212121"
+    // "editor.background": "#151515",
+    // "editor.lineHighlightBorder": "#808080",
+    // "editor.lineHighlightBackground": "#212121"
   }
 }

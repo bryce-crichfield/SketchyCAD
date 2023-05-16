@@ -94,6 +94,11 @@ float Input::GetMouseY() const
     return m_input_state.current_mouse_y;
 }
 
+Vector2 Input::GetMousePosition() const
+{
+    return Vector2(m_input_state.current_mouse_x, m_input_state.current_mouse_y);
+}
+
 float Input::GetMouseDeltaX() const
 {
     return m_input_state.current_mouse_x - m_input_state.last_mouse_x;

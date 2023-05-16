@@ -1,4 +1,4 @@
-#include <Window.h>
+#include <Engine.h>
 
 Vector2 Component::GetPosition() const
 {
@@ -20,102 +20,161 @@ void Component::SetSize(unsigned width, unsigned height)
     m_size = Vector2(width, height);
 }
 
-void Window::Update(FocusManager &manager, State &state, FontGraphics &font_graphics, Pallette pallette)
+void DrawCursor(State state) {
+    Graphics& graphics = state.graphics;
+    Input& input = state.input;
+
+    unsigned x = input.GetMouseX();
+    unsigned y = input.GetMouseY();
+
+    float x0 = x;
+    float y0 = y;
+    float x1 = x;
+    float y1 = y + 5;
+    float x2 = x + 4;
+    float y2 = y + 4;
+
+    graphics.DrawLine(Color::WHITE, x0, y0, x1, y1);
+    graphics.DrawLine(Color::WHITE, x1, y1, x2, y2);
+    graphics.DrawLine(Color::WHITE, x2, y2, x0, y0);
+}
+
+void Window::Update(State state)
 {
-    if (toggle_shortcut(state.input))
+    // WindowManager &manager = state.static_context.window_manager;
+    
+    if (m_toggle_shortcut(state.input))
     {
-        is_open = !is_open;
+        // m_is_open = !m_is_open;
+
+        if (!static_interactor.HasLock()) {
+            static_interactor.ForceLock();
+        } else {
+            std::cout << "Releasing lock" << std::endl;
+            static_interactor.ReleaseLock();
+        }
+
     }
 
-    if (is_open)
+    if (!m_is_open)
     {
-        // Update the title bar and update this window's position in response
-        title_bar.Update(manager, state, *this, pallette, font_graphics, title);
-        SetPosition(title_bar.GetPosition().x, title_bar.GetPosition().y + title_bar.GetSize().y);
-
         // If the mouse is clicking in the body of the window, request focus
         Vector2 mouse_position = Vector2(state.input.GetMouseX(), state.input.GetMouseY());
         bool is_inside = Vector2::IsInBounds(mouse_position, GetPosition(), GetSize());
+
         if (is_inside && state.input.IsPressed(MouseButton::LEFT))
         {
-            manager.RequestFocus(this);
+            // Entry condition for interaction lock
+            // static_interactor.TryLock();
         }
 
-        OnUpdate(manager, state, font_graphics, pallette);
+        if (static_interactor.HasLock())
+        {
+            // Update the title bar and update this window's position in response
+            m_drag_bar.Update(state, *this, m_title);
+            SetPosition(m_drag_bar.GetPosition().x, m_drag_bar.GetPosition().y + m_drag_bar.GetSize().y);
+        }
 
         // Update the root panel to match the window's position and size
-        root_panel->SetPosition(GetPosition().x, GetPosition().y);
-        root_panel->SetSize(GetSize().x, GetSize().y);
-        root_panel->Update(state);
+        m_root_panel->SetPosition(GetPosition().x, GetPosition().y);
+        m_root_panel->SetSize(GetSize().x, GetSize().y);
+
+        if (static_interactor.HasLock())
+        {
+            this->OnInput(state);
+            this->m_root_panel->Input(state);
+            this->OnUpdate(state);
+            this->m_root_panel->Update(state);
+        }
+
+        this->OnRender(state);
+        this->m_root_panel->Render(state);
+
+
+        if (static_interactor.HasLock()) {
+            DrawCursor(state);
+        }
+
+        // if (!is_inside && state.input.IsPressed(MouseButton::LEFT))
+        // {
+        //     // Exit condition for interaction lock
+        //     static_interactor.ReleaseLock();
+        // }
     }
 }
 
-void DragBar::Update(FocusManager &manager, State &state, Window &parent, Pallette pallette,
-                     FontGraphics &font_graphics, std::string title)
-{
-    // @brief: updates the window title and vieware position based on the dragging input
-    // @returns: the new position of the parent window which will change if the title bar is being dragged
-    Vector2 parent_position = parent.GetPosition();
-    Vector2 parent_size = parent.GetSize();
-
-    Input &input = state.input;
-    Graphics &graphics = state.graphics;
-
-    // Sync the position of the title bar with the parent window
-    SetPosition(parent_position.x, parent_position.y - GetSize().y);
-
-    // If the mouse is dragging in the title bar, move the console window
-    bool is_held = input.IsHeld(MouseButton::LEFT);
-    Vector2 mouse_position = Vector2(input.GetMouseX(), input.GetMouseY());
-    bool is_inside = Vector2::IsInBounds(mouse_position, GetPosition(), GetSize());
-
-    // This works much better because it causes the title bar to act stickily
-    // Once we have detecting any action inside, stick the window to the mouse
-    // Once mouse is released, unstick the window irrespective of mouse position
-    if (!is_held)
+    void Window::DragBar::Update(State state, Window & parent, std::string title)
     {
-        is_being_dragged = false;
-    }
+        // WindowManager &manager = state.static_context.window_manager;
+        // @brief: updates the window title and vieware position based on the dragging input
+        // @returns: the new position of the parent window which will change if the title bar is being dragged
+        Vector2 parent_position = parent.GetPosition();
+        Vector2 parent_size = parent.GetSize();
 
-    if (is_held && is_inside)
-    {
-        is_being_dragged = true;
-    }
+        Input &input = state.input;
+        Graphics &graphics = state.graphics;
 
-    // If the mouse is clicking in the title bar, request focus
-    if (input.IsPressed(MouseButton::LEFT) && is_inside)
-    {
-        manager.RequestFocus(&parent);
-    }
+        // Sync the position and size of the drag bar with the parent window
+        SetPosition(parent_position.x, parent_position.y - GetSize().y);
+        SetSize(parent_size.x, GetSize().y);
 
-    int x = parent_position.x;
-    int y = parent_position.y;
+        // If the mouse is dragging in the drag bar, move the console window
+        bool is_held = input.IsHeld(MouseButton::LEFT);
+        Vector2 mouse_position = Vector2(input.GetMouseX(), input.GetMouseY());
+        bool is_inside = Vector2::IsInBounds(mouse_position, GetPosition(), GetSize());
 
-    if (is_being_dragged && manager.HasFocus(&parent))
-    {
-        x = input.GetMouseX() - (parent_size.x / 2);
-        y = input.GetMouseY() + (GetSize().y / 2);
-        x = std::clamp(x, 0, (int)(graphics.GetWidth() - parent_size.x));
-        y = std::clamp(y, (int)GetSize().y, (int)(graphics.GetHeight() - (parent_size.y)));
-        SetPosition(x, y - GetSize().y);
-    }
+        // This works much better because it causes the title bar to act stickily
+        // Once we have detecting any action inside, stick the window to the mouse
+        // Once mouse is released, unstick the window irrespective of mouse position
+        if (!is_held)
+        {
+            is_being_dragged = false;
+        }
 
-    // Draw the title bar
-    Pixel color = manager.HasFocus(&parent) ? pallette.highlight : pallette.highlight.Darker();
-    graphics.FillRect(color, x, y - GetSize().y, parent_size.x, GetSize().y);
+        if (is_held && is_inside)
+        {
+            is_being_dragged = true;
+        }
 
-    // Draw the title text centered in the title bar
-    Vector2 text_size = font_graphics.MeasureString(title);
-    int text_x = x + (parent_size.x / 2) - (text_size.x / 2);
-    int text_y = y - GetSize().y + (GetSize().y / 2) - (text_size.y / 2);
-    font_graphics.DrawString(pallette.foreground, title, text_x, text_y);
-    graphics.DrawRect(pallette.border, x, y - GetSize().y, parent_size.x, GetSize().y);
-};
+        // If the mouse is clicking in the title bar, request focus
+        if (input.IsPressed(MouseButton::LEFT) && is_inside)
+        {
+            // manager.RequestFocus(&parent);
+            // parent.static_interactor.TryLock();
+        }
 
-void ConsoleWindow::OnUpdate(FocusManager &manager, State &state, FontGraphics &font_graphics, Pallette pallette)
-{
+        int x = parent_position.x;
+        int y = parent_position.y;
 
-    if (manager.HasFocus(this))
+        if (is_being_dragged && parent.static_interactor.HasLock())
+        {
+            x = input.GetMouseX() - (parent_size.x / 2);
+            y = input.GetMouseY() + (GetSize().y / 2);
+            x = std::clamp(x, 0, (int)(graphics.GetWidth() - parent_size.x));
+            y = std::clamp(y, (int)GetSize().y, (int)(graphics.GetHeight() - (parent_size.y)));
+            SetPosition(x, y - GetSize().y);
+        }
+        
+        Pallette &pallette = state.static_context.pallette;
+        Font &font = state.static_context.fonts.GetFont("default");
+        FontGraphics font_graphics(graphics, font);
+
+        // Draw the title bar
+        Pixel color = is_inside ? Color::GRAY : Color::DARK_GRAY;
+        graphics.FillRect(color, x, y - GetSize().y, parent_size.x, GetSize().y);
+
+        // Draw the title text centered in the title bar
+        Vector2 text_size = font_graphics.MeasureString(title);
+        int text_x = x + (parent_size.x / 2) - (text_size.x / 2);
+        int text_y = y - GetSize().y + (GetSize().y / 2) - (text_size.y / 2);
+        font_graphics.DrawString(Color::WHITE, title, text_x, text_y);
+        // Draw border on top, left and right
+        graphics.DrawLine(Color::WHITE, x, y - GetSize().y, x + parent_size.x, y - GetSize().y);
+        graphics.DrawLine(Color::WHITE, x, y - GetSize().y, x, y);
+        graphics.DrawLine(Color::WHITE, x + parent_size.x, y - GetSize().y, x + parent_size.x, y);
+    };
+
+    void ConsoleWindow::OnInput(State state)
     {
         text_type.Update(state.input, state.chrono);
 
@@ -137,58 +196,69 @@ void ConsoleWindow::OnUpdate(FocusManager &manager, State &state, FontGraphics &
         }
     }
 
-    unsigned x = GetPosition().x;
-    unsigned y = GetPosition().y;
-    unsigned width = GetSize().x;
-    unsigned height = GetSize().y;
-
-    // Draw the background
-    state.graphics.FillRect(pallette.background, x, y, width, height);
-    state.graphics.DrawRect(pallette.border, x, y, width, height);
-
-    TextRenderer text_render(x + padding, y + padding, width - padding, height - padding, padding,
-                             scroll_pixel_offset);
-    text_render.DrawText(pallette.foreground, text_type.GetText(), font_graphics);
-
-    // Update the cursor and draw it to the screen
-    if (manager.HasFocus(this) && cursor_timer.Update(state.chrono))
+    void ConsoleWindow::OnUpdate(State state)
     {
-        cursor_character = cursor_character == ' ' ? '_' : ' ';
+        if (cursor_timer.Update(state.chrono))
+        {
+            cursor_character = cursor_character == ' ' ? '_' : ' ';
+        }
     }
 
-    std::string cursor_string = std::string(1, this->cursor_character);
-    text_render.DrawText(pallette.foreground, cursor_string, font_graphics);
-}
-
-void FocusManager::Update(State &state, FontGraphics &font_graphics, Pallette pallette)
-{
-    has_given_focus = false;
-
-    for (Window *window : windows)
+    void ConsoleWindow::OnRender(State state)
     {
-        if (window != active_window)
-            window->Update(*this, state, font_graphics, pallette);
+        // Get needed variables and objects
+        unsigned x = GetPosition().x;
+        unsigned y = GetPosition().y;
+        unsigned width = GetSize().x;
+        unsigned height = GetSize().y;
+
+        Pallette &pallette = state.static_context.pallette;
+        Font &font = state.static_context.fonts.GetFont("default");
+        FontGraphics font_graphics(state.graphics, font);
+
+        // Draw the background
+        state.graphics.FillRect(pallette.background, x, y, width, height);
+        state.graphics.DrawRect(pallette.border, x, y, width, height);
+
+        // Draw the text
+        TextRenderer text_render(x + padding, y + padding, width - padding, height - padding, padding,
+                                 scroll_pixel_offset);
+        text_render.DrawText(pallette.foreground, text_type.GetText(), font_graphics);
+
+        // Draw the cursor
+        std::string cursor_string = std::string(1, this->cursor_character);
+        text_render.DrawText(pallette.foreground, cursor_string, font_graphics);
     }
 
-    if (active_window != nullptr)
-        active_window->Update(*this, state, font_graphics, pallette);
-}
-
-void FocusManager::RegisterWindow(Window *window)
-{
-    windows.push_back(window);
-}
-
-void FocusManager::RequestFocus(Window *window)
-{
-    if (!has_given_focus)
+    void WindowManager::Update(State state)
     {
-        active_window = window;
-        has_given_focus = true;
-    }
-}
+        has_given_focus = false;
 
-bool FocusManager::HasFocus(Window *window)
-{
-    return active_window == window;
-}
+        for (Window *window : windows)
+        {
+            if (window != active_window)
+                window->Update(state);
+        }
+
+        if (active_window != nullptr)
+            active_window->Update(state);
+    }
+
+    void WindowManager::RegisterWindow(Window * window)
+    {
+        windows.push_back(window);
+    }
+
+    void WindowManager::RequestFocus(Window * window)
+    {
+        if (!has_given_focus)
+        {
+            active_window = window;
+            has_given_focus = true;
+        }
+    }
+
+    bool WindowManager::HasFocus(Window * window)
+    {
+        return active_window == window;
+    }

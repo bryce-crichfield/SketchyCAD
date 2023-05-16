@@ -1,4 +1,4 @@
-#include <Window.h>
+#include <Engine.h>
 
 Alignment LayoutStrategy::GetAlignment()
 {
@@ -70,39 +70,25 @@ void HorizontalLayout::Reset(unsigned x, unsigned y)
     layout_y = y;
 }
 
-void GridLayoutStrategy::Layout(Panel &parent, Panel &child)
+Panel::Panel(unsigned width, unsigned height) : Component(width, height)
 {
-    Vector2 parent_position = parent.GetPosition();
-    Vector2 parent_size = parent.GetSize();
-
-    Vector2 child_position = child.GetPosition();
-    Vector2 child_size = child.GetSize();
-
-    Vector2 grid_size = parent_size / Vector2(grid_width, grid_height);
-
-    Vector2 position = parent_position + Vector2(index_x, index_y) * grid_size; 
-    child.SetPosition(position.x, position.y);
-
-    index_x++;
-    if (index_x >= grid_width)
-    {
-        index_x = 0;
-        index_y++;
-    }
+    m_layout_strategy = std::make_unique<VerticalLayout>();
 }
 
-void GridLayoutStrategy::Reset(unsigned x, unsigned y)
+void Panel::Input(State &state)
 {
-    layout_x = x;
-    layout_y = y;
-    index_x = 0;
-    index_y = 0;
+    OnInput(state);
+
+    for (std::shared_ptr<Panel> &child : m_children)
+    {
+        child->Input(state);
+    }
 }
 
 void Panel::Update(State &state)
 {
     m_layout_strategy->Reset(GetPosition().x, GetPosition().y);
-    for (std::unique_ptr<Panel> &child : m_children)
+    for (std::shared_ptr<Panel> &child : m_children)
     {
         if (m_layout_strategy)
             m_layout_strategy->Layout(*this, *child);
@@ -110,15 +96,23 @@ void Panel::Update(State &state)
 
     OnUpdate(state);
 
-    m_border->Draw(*this, state.graphics);
-
-    for (std::unique_ptr<Panel> &child : m_children)
+    for (std::shared_ptr<Panel> &child : m_children)
     {
         child->Update(state);
     }
 }
 
-void Panel::AddChild(std::unique_ptr<Panel> child)
+void Panel::Render(State &state)
 {
-    m_children.push_back(std::move(child));
+    OnRender(state);
+
+    for (std::shared_ptr<Panel> &child : m_children)
+    {
+        child->Render(state);
+    }
+}
+
+void Panel::AddChild(std::shared_ptr<Panel> child)
+{
+    m_children.push_back(child);
 }

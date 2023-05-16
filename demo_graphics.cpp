@@ -1,362 +1,238 @@
+#include <Cad.h>
 #include <Engine.h>
-#include <Window.h>
-#include <climits>
-#include <fstream>
+
 #include <math.h>
 
-struct DebouncedKey
+struct TextDisplay : public Panel
 {
-    Debouncer debouncer;
-    PulseTimer wait_timer;
+    float padding = 3;
 
-  public:
-    DebouncedKey(Key key, float time) : debouncer(key), wait_timer(time)
+    TextDisplay(unsigned width, unsigned height)
+        : Panel(width, height)
     {
     }
 
-    bool Update(State state)
+    void OnInput(State &state) override
     {
-        auto &input = state.input;
-        auto &chrono = state.chrono;
+    }
 
-        debouncer.Update(input, chrono);
-        bool is_up_time = wait_timer.Update(chrono);
-        if (debouncer.IsHeld() && is_up_time)
+    void OnUpdate(State &state) override
+    {
+    }
+
+    void OnRender(State &state) override
+    {
+        float x = GetPosition().x;
+        float y = GetPosition().y;
+        float w = GetSize().x;
+        float h = GetSize().y;
+
+        Font &font = state.static_context.fonts.GetFont("default");
+        FontGraphics font_graphics(state.graphics, font);
+        Pallette &pallette = state.static_context.pallette;
+
+        state.graphics.FillRect(Color::BLACK, x, y, w, h);
+        state.graphics.DrawRect(Color::WHITE, x, y, w, h);
+
+        std::vector<std::string> lines = state.static_context.output.GetLines();
+        unsigned font_size = font_graphics.GetDisplayWidth();
+        unsigned max_lines = (h - (2 * padding)) / font_size;
+        unsigned max_chars = (w - (2 * padding)) / font_size;
+
+        unsigned start_x = x + padding;
+        unsigned start_y = (y + h) - (padding + font_size);
+        unsigned end_x = (x + w) - (padding + font_size);
+        unsigned end_y = y + (padding + font_size);
+
+        unsigned draw_x = start_x;
+        unsigned draw_y = start_y;
+
+        unsigned delta_x = font_size;
+        unsigned delta_y = -1 * font_size;
+
+        // Draw the lines in reverse order
+        for (auto it = lines.rbegin(); it != lines.rend(); it++)
         {
-            wait_timer.Reset();
-            return true;
-        }
-
-        return input.IsPressed(debouncer.matching_key);
-    }
-};
-
-struct Camera
-{
-    int pan_x = 250;
-    int pan_y = 250;
-    float scale = 10;
-
-    DebouncedKey up_key = DebouncedKey(Key::Up, 0.325);
-    DebouncedKey down_key = DebouncedKey(Key::Down, 0.325);
-    DebouncedKey left_key = DebouncedKey(Key::Left, 0.325);
-    DebouncedKey right_key = DebouncedKey(Key::Right, 0.325);
-
-  public:
-    void Update(State state)
-    {
-        auto &input = state.input;
-        auto &chrono = state.chrono;
-        bool is_drag =
-            input.IsHeld(MouseButton::MIDDLE) && (input.GetMouseDeltaX() != 0 || input.GetMouseDeltaY() != 0);
-
-        if (is_drag)
-        {
-            pan_x += input.GetMouseDeltaX();
-            pan_y += input.GetMouseDeltaY();
-        }
-
-        if (up_key.Update(state))
-        {
-            pan_y += 10 * scale;
-        }
-
-        if (down_key.Update(state))
-        {
-            pan_y -= 10 * scale;
-        }
-
-        if (left_key.Update(state))
-        {
-            pan_x += 10 * scale;
-        }
-
-        if (right_key.Update(state))
-        {
-            pan_x -= 10 * scale;
-        }
-
-        scale += 50 * input.GetScrollDeltaY() * chrono.GetDelta();
-        scale = std::clamp(scale, 0.5f, 10.0f);
-        // snap scale to nearest multiple of 0.01
-        scale = roundf(scale * 100) / 100;
-    }
-
-    Transform GetTransform()
-    {
-        Transform transform;
-        transform.Translate(pan_x, pan_y);
-        transform.Scale(scale);
-        return transform;
-    }
-};
-
-struct ICadObject
-{
-    virtual void Draw(Graphics &graphics) = 0;
-};
-
-struct LineObject : ICadObject
-{
-    Vector2 start;
-    Vector2 end;
-
-    LineObject(Vector2 start, Vector2 end) : start(start), end(end)
-    {
-    }
-
-    void Draw(Graphics &graphics)
-    {
-        graphics.DrawLine(Color::WHITE, start.x, start.y, end.x, end.y);
-    }
-};
-
-struct CircleObject : ICadObject
-{
-    Vector2 center;
-    float radius;
-
-    CircleObject(Vector2 center, float radius) : center(center), radius(radius)
-    {
-    }
-
-    void Draw(Graphics &graphics)
-    {
-        graphics.DrawCircle(Color::WHITE, center.x, center.y, radius);
-    }
-};
-
-struct CadController;
-
-struct ICadMode
-{
-    virtual void Update(CadController &state, Input &input) = 0;
-    std::string GetName() { return typeid(*this).name(); }
-};
-
-struct CadController
-{
-    std::vector<std::unique_ptr<ICadObject>> objects;
-    Camera camera;
-    std::unique_ptr<ICadMode> current_mode = nullptr;
-
-    void Update(State state);
-};
-
-struct LineMode : ICadMode
-{
-    std::stack<Vector2> points;
-
-    LineMode() : points()
-    {
-    }
-
-    void Update(CadController &state, Input &input) override
-    {
-        if (points.size() == 2)
-        {
-            Vector2 start = points.top();
-            points.pop();
-            Vector2 end = points.top();
-            points.pop();
-
-            state.objects.push_back(std::make_unique<LineObject>(start, end));
-        }
-
-        if (input.IsPressed(MouseButton::LEFT))
-        {
-            Transform view_transform = state.camera.GetTransform();
-            float mouse_x = input.GetMouseX();
-            float mouse_y = input.GetMouseY();
-            float world_x = (mouse_x - view_transform.x) / view_transform.scale;
-            float world_y = (mouse_y - view_transform.y) / view_transform.scale;
-            Vector2 world_pos = Vector2(world_x, world_y);
-            points.push(world_pos);
-        }
-    }
-};
-
-struct CircleMode : ICadMode
-{
-    std::stack<Vector2> points;
-
-    CircleMode() : points()
-    {
-    }
-
-    void Update(CadController &state, Input &input) override
-    {
-        if (points.size() == 2)
-        {
-            Vector2 radius = points.top();
-            points.pop();
-            Vector2 center = points.top();
-            points.pop();
-
-            float r = (center - radius).Length();
-            state.objects.push_back(std::make_unique<CircleObject>(center, r));
-        }
-
-        if (input.IsPressed(MouseButton::LEFT))
-        {
-            Transform view_transform = state.camera.GetTransform();
-            float mouse_x = input.GetMouseX();
-            float mouse_y = input.GetMouseY();
-            float world_x = (mouse_x - view_transform.x) / view_transform.scale;
-            float world_y = (mouse_y - view_transform.y) / view_transform.scale;
-            Vector2 world_pos = Vector2(world_x, world_y);
-            std::cout << "world_pos: " << world_pos.x << ", " << world_pos.y << std::endl;
-            points.push(world_pos);
-        }
-    }
-};
-
-void CadController::Update(State state)
-{
-    camera.Update(state);
-
-    if (state.input.IsPressed(Key::L))
-    {
-        current_mode = std::make_unique<LineMode>();
-    }
-    else if (state.input.IsPressed(Key::C))
-    {
-        current_mode = std::make_unique<CircleMode>();
-    }
-
-    if (current_mode != nullptr)
-    {
-        current_mode->Update(*this, state.input);
-    }
-
-    state.graphics.PushTransform(camera.GetTransform());
-    for (auto &object : objects)
-    {
-        object->Draw(state.graphics);
-    }
-    state.graphics.PopTransform();
-}
-
-struct CadWorld
-{
-    CadWorld()
-    {
-    }
-
-    void Update(State state, Camera &camera)
-    {
-        Transform view_transform = camera.GetTransform();
-
-        float scale = view_transform.scale;
-        unsigned width = state.graphics.GetWidth();
-        unsigned height = state.graphics.GetHeight();
-
-        state.graphics.PushTransform(view_transform);
-        // Draw World
-        state.graphics.PopTransform();
-
-        // Grid Lines -------------------------------------------
-        {
-            unsigned pan_x = view_transform.x + (scale / view_transform.x);
-            unsigned pan_y = view_transform.y + (scale / view_transform.y);
-
-            unsigned grid_size = 10 * scale;
-
-            unsigned start_x = pan_x % grid_size;
-            unsigned start_y = pan_y % grid_size;
-
-            for (unsigned x = start_x; x < width; x += grid_size)
+            for (auto character : *it)
             {
-                for (unsigned y = start_y; y < height; y += grid_size)
+                std::string character_string = std::string(1, character);
+                font_graphics.DrawString(Color::WHITE, character_string, draw_x, draw_y);
+                bool is_overline = draw_x > end_x;
+                if (is_overline)
                 {
-                    state.graphics.SetPixel(Color::GRAY, x, y);
+                    draw_x = start_x;
+                    draw_y += delta_y;
+                }
+                else
+                {
+                    draw_x += delta_x;
+                }
+
+                if (draw_y < end_y)
+                {
+                    return;
                 }
             }
+
+            draw_x = start_x;
+            draw_y += delta_y;
+            draw_y -= 5;
         }
-
-        // Draw Origin Lines
-        float pan_x = view_transform.x + (scale / view_transform.x);
-        float pan_y = view_transform.y + (scale / view_transform.y);
-        state.graphics.DrawLine(Color::RED, pan_x, 0, pan_x, state.graphics.GetHeight());
-        state.graphics.DrawLine(Color::GREEN, 0, pan_y, state.graphics.GetWidth(), pan_y);
-
-        // Draw Cursor Lines
-        float cursor_x = state.input.GetMouseX();
-        float cursor_y = state.input.GetMouseY();
-        state.graphics.DrawLine(Color::WHITE, cursor_x, 0, cursor_x, state.graphics.GetHeight());
-        state.graphics.DrawLine(Color::WHITE, 0, cursor_y, state.graphics.GetWidth(), cursor_y);
-        float world_x = (cursor_x - view_transform.x) / scale;
-        float world_y = (cursor_y - view_transform.y) / scale;
     }
 };
 
-struct GraphicsTest : Extension
+
+struct TextField : public Panel
 {
-    bool panel_toggle = false;
-    float delta = 0;
+    std::shared_ptr<Cad::Command::Dispatcher> command_dispatcher;
+    TextType text_type;
+    std::string leader = "> ";
 
-    ConsoleWindow t1 =
-        ConsoleWindow([](Input &input) { return input.IsHeld(Key::LControl) && input.IsPressed(Key::Num1); });
-
-    ConsoleWindow t2 =
-        ConsoleWindow([](Input &input) { return input.IsHeld(Key::LControl) && input.IsPressed(Key::Num2); });
-
-    FocusManager focus_manager = FocusManager();
-
-    CadController cad_controller;
-    CadWorld world;
-
-    GraphicsTest()
+    TextField(std::shared_ptr<Cad::Command::Dispatcher> dispatcher, unsigned width, unsigned height)
+        : command_dispatcher(dispatcher), Panel(width, height)
     {
-        t1.SetSize(180, 320);
-        t1.SetTitle("Console 1");
-
-        t2.SetPosition(300, 300);
-        t2.SetSize(300, 150);
-        t2.SetTitle("Console 2");
-        t2.GetRoot().SetLayoutStrategy(std::make_unique<GridLayoutStrategy>(3, 3));
-
-        focus_manager.RegisterWindow(&t1);
-        focus_manager.RegisterWindow(&t2);
     }
 
-    void OnStart(StaticContext &context) override
+    void OnInput(State &state) override
     {
-        context.fonts.LoadFont("default", "assets/font/dogica.bin", 8);
+        auto& output_stream = state.static_context.output;
+        text_type.Update(state.input, state.chrono);
+
+        if (state.input.IsPressed(Key::Enter))
+        {
+            output_stream.Println(leader + text_type.GetText());
+            command_dispatcher->Dispatch(text_type.GetText()); // assuming not nullptr because of single constructor
+            text_type.Clear();
+        }
+
+        if (state.input.IsHeld(Key::LControl) && state.input.IsPressed(Key::Backspace))
+        {
+            text_type.Clear();
+        }
     }
 
-    Camera camera;
+    void OnUpdate(State &state) override
+    {
+    }
+
+    void OnRender(State &state) override
+    {
+        float x = GetPosition().x;
+        float y = GetPosition().y;
+        float width = GetSize().x;
+        float height = GetSize().y;
+
+        Font &font = state.static_context.fonts.GetFont("default");
+        FontGraphics font_graphics(state.graphics, font);
+        Pallette &pallette = state.static_context.pallette;
+
+        // Draw background and border
+        state.graphics.FillRect(Color::BLACK, x, y, width, height);
+        // Draw border on the left and right, and the bottom
+        state.graphics.DrawLine(Color::WHITE, x, y, x, y + height);
+        state.graphics.DrawLine(Color::WHITE, x + width, y, x + width, y + height);
+        state.graphics.DrawLine(Color::WHITE, x, y + height, x + width, y + height);
+
+        // Calculate the max text length, drop the first n characters if it is too long
+        unsigned font_size = font_graphics.GetDisplayWidth();
+        unsigned max_text_length = (width - font_size) / font_size;
+        std::string text = leader + text_type.GetText();
+        if (text.length() > max_text_length)
+        {
+            text = text.substr(text.length() - max_text_length, max_text_length);
+        }
+        // Re-add the leader character
+        text = leader + text.substr(leader.length(), text.length() - leader.length());
+        float text_y = y + (height - font_size) / 2;
+        // Draw the text at the center of the text field
+        font_graphics.DrawString(Color::GREEN, text, x, text_y);
+    }
+};
+
+struct CommandWindow : public Window
+{
+    std::shared_ptr<TextField> text_field;
+    std::shared_ptr<TextDisplay> text_display;
+    std::shared_ptr<Cad::Command::Dispatcher> command_dispatcher;
+
+    CommandWindow(InteractionLock &lock, std::shared_ptr<Cad::Command::Dispatcher> dispatcher)
+        : Window(lock, Shortcuts::ctrl_n1, 30, 30, 100, 100), command_dispatcher(dispatcher)
+    {
+        text_field = std::make_shared<TextField>(dispatcher, 100, 15);
+        text_display = std::make_shared<TextDisplay>(100, 80);
+        GetRoot().AddChild(text_display);
+        GetRoot().AddChild(text_field);
+    }
+
+    void OnInput(State state) override
+    {
+    }
 
     void OnUpdate(State state) override
     {
-        state.graphics.Clear(Pixel(0x20, 0x20, 0x20));
+        text_field->SetSize(GetSize().x, 15);
+        text_display->SetSize(GetSize().x, GetSize().y - 15);
+    }
 
-        cad_controller.Update(state);
-        world.Update(state, cad_controller.camera);
+    void OnRender(State state) override
+    {
+    }
+};
 
-        // ------------------------------------------------------
-        Font &default_font = state.static_context.fonts.GetFont("default");
-        FontGraphics font_graphics(state.graphics, default_font);
-        font_graphics.SetDisplayWidth(8);
-        delta += state.chrono.GetDelta();
+#define VIEW_SIZE_WIDTH 700
+#define VIEW_SIZE_HEIGHT 700
 
-        Pallette pallette = Pallette();
-        pallette.background = Color::BLACK;
-        pallette.foreground = Color::WHITE;
-        pallette.highlight = Color::RED;
-        pallette.border = Color::WHITE;
+struct CadProgram : Program
+{
+    InteractionLock lock;
+    std::shared_ptr<Cad::Command::Dispatcher> command_dispatcher = std::make_shared<Cad::Command::Dispatcher>();
+    Cad::Controller cad = Cad::Controller(lock);
 
-        focus_manager.Update(state, font_graphics, pallette);
+    CommandWindow t2 = CommandWindow(lock, command_dispatcher);
 
-        if (cad_controller.current_mode != nullptr)
-            font_graphics.DrawString(Color::WHITE, cad_controller.current_mode->GetName(), 0, 0);
+    CadProgram()
+    {
+        t2.SetPosition(0, VIEW_SIZE_HEIGHT - 200);
+        t2.SetSize(VIEW_SIZE_WIDTH / 2, 200);
+        t2.SetTitle("Command Window");
+    }
+
+    void OnStart(State &state) override
+    {
+        state.static_context.fonts.LoadFont("default", "assets/font/dogica.bin", 8);
+
+        command_dispatcher->Register(std::make_unique<Cad::Command::SnapCommand::Signature>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::ClearCommand::Signature>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::CreateCircle::By2Point>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::CreateCircle::ByRadius>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::CreateLine::By2Point>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::CreateLine::ByStartAngleLength>());
+
+        command_dispatcher->Register(std::make_unique<Cad::Command::ToggleSnapCommand::Signature>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::TranslateCommand::Signature>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::PanCommand::Signature>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::ZoomCommand::Signature>());
+        command_dispatcher->Register(std::make_unique<Cad::Command::PasteCommand::Signature>());
+
+        cad.OnStart(state);
+
+        // TODO: Figure out what to do with the window manager... maybe remove it?
+        // WindowManager &window_manager = context.window_manager;
+        // window_manager.RegisterWindow(&t2);
+    }
+
+    void OnUpdate(State state) override
+    {
+        state.graphics.Clear(Color::BLACK);
+        command_dispatcher->Execute(cad);
+        cad.Update(state);
+        t2.Update(state);
     }
 };
 
 int main(void)
 {
-    std::shared_ptr<GraphicsTest> test = std::make_shared<GraphicsTest>();
-    Engine engine(1300, 1300, 500, 500);
-    engine.AddExtension(test);
-    engine.Launch();
+    Engine engine(1300, 1300, VIEW_SIZE_WIDTH, VIEW_SIZE_HEIGHT);
+    CadProgram program;
+    engine.Launch(program);
 }

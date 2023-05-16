@@ -35,11 +35,7 @@ Transform& Transform::Rotate(float rotation) {
 }
 
 Vector2 Transform::Apply(Vector2 point) const {
-    float x = point.x * scale;
-    float y = point.y * scale;
-    float cos = std::cos(rotation);
-    float sin = std::sin(rotation);
-    float x_rot = x * cos - y * sin;
-    float y_rot = x * sin + y * cos;
-    return Vector2(x_rot + this->x, y_rot + this->y);
+    // TODO: Add rotation
+
+    return Vector2(point.x * scale + x, point.y * scale + y);
 }

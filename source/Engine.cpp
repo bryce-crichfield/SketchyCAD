@@ -22,9 +22,10 @@ Engine::~Engine()
 void Engine::Launch(Program &program)
 {
     bool is_started = false;
+    Clock clock;
     do
     {
-        Clock clock;
+        clock.Tick();
         StaticContext context(m_font_manager, m_output_stream, m_window_manager, m_pallette);
         Input input = viewport->UpdateInput();
         Graphics graphics = viewport->GetGraphics();

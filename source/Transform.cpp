@@ -36,6 +36,14 @@ Transform& Transform::Rotate(float rotation) {
 
 Vector2 Transform::Apply(Vector2 point) const {
     // TODO: Add rotation
+    float x = point.x * scale + this->x;
+    float y = point.y * scale + this->y;
+    return Vector2(x, y);
+}
 
-    return Vector2(point.x * scale + x, point.y * scale + y);
+Transform Transform::Inverse() const {
+    float x = -this->x / scale;
+    float y = -this->y / scale;
+    float scale = 1 / this->scale;
+    return Transform(x, y, scale, 0);
 }

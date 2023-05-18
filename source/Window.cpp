@@ -158,7 +158,7 @@ void Window::Update(State state)
         Pallette &pallette = state.static_context.pallette;
         Font &font = state.static_context.fonts.GetFont("default");
         FontGraphics font_graphics(graphics, font);
-
+        
         // Draw the title bar
         Pixel color = is_inside ? Color::GRAY : Color::DARK_GRAY;
         graphics.FillRect(color, x, y - GetSize().y, parent_size.x, GetSize().y);

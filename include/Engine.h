@@ -179,6 +179,8 @@ class Graphics {
     void PushTransform(const Transform& transform);
     Transform PopTransform();
     Transform GetTransform() const;
+
+    Vector2 TransformPoint(const Vector2& point) const;
 };
 
 class TextRenderer {
@@ -295,15 +297,22 @@ enum class MouseButton : unsigned char {
 };
 
 struct OutputStream {
-    std::vector<std::string> lines;
+    struct Line {
+        std::string text;
+        Pixel color;
+
+        Line(std::string text, Pixel color) : text(text), color(color) {}
+    };
+
+    std::vector<Line> lines;
 
     OutputStream() = default;
 
     void Flush() {}
 
-    void Println(std::string text) { lines.push_back(text); }
+    void PushLine(std::string text, Pixel color = Color::WHITE) { lines.push_back(Line(text, color)); }
 
-    std::vector<std::string> GetLines() { return lines; }
+    std::vector<Line> GetLines() { return lines; }
 };
 
 struct InputState {
@@ -519,6 +528,7 @@ struct Transform {
     Transform& Rotate(float rotation);
 
     Vector2 Apply(Vector2 point) const;
+    Transform Inverse() const;
 
     float GetX() const { return x; }
 

@@ -60,7 +60,11 @@
     "list": "cpp",
     "codecvt": "cpp",
     "fstream": "cpp",
-    "set": "cpp"
+    "set": "cpp",
+    "cstring": "cpp",
+    "bitset": "cpp",
+    "map": "cpp",
+    "regex": "cpp"
   },
   "files.exclude": {
     "**/.git": true,

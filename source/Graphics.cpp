@@ -2,20 +2,11 @@
 
 #include <glad/glad.h>
 
-Graphics::Graphics(std::shared_ptr<Image> image)
-{
-    m_image = image;
-}
+Graphics::Graphics(std::shared_ptr<Image> image) { m_image = image; }
 
-void Graphics::Clear(Pixel color)
-{
-    m_image->Clear(color);
-}
+void Graphics::Clear(Pixel color) { m_image->Clear(color); }
 
-void Graphics::SetPixel(Pixel color, unsigned x, unsigned y)
-{
-    m_image->SetPixel(x, y, color);
-}
+void Graphics::SetPixel(Pixel color, unsigned x, unsigned y) { m_image->SetPixel(x, y, color); }
 
 void Graphics::DrawLine(Pixel color, float x0_in, float y0_in, float x1_in, float y1_in)
 {
@@ -36,25 +27,21 @@ void Graphics::DrawLine(Pixel color, float x0_in, float y0_in, float x1_in, floa
     int err = dx + dy;
     int e2;
 
-    while (true)
-    {
+    while (true) {
         SetPixel(color, x0, y0);
 
-        if (x0 == x1 && y0 == y1)
-        {
+        if (x0 == x1 && y0 == y1) {
             break;
         }
 
         e2 = 2 * err;
 
-        if (e2 >= dy)
-        {
+        if (e2 >= dy) {
             err += dy;
             x0 += sx;
         }
 
-        if (e2 <= dx)
-        {
+        if (e2 <= dx) {
             err += dx;
             y0 += sy;
         }
@@ -70,14 +57,12 @@ void Graphics::DrawRect(Pixel color, unsigned x_in, unsigned y_in, unsigned widt
     float width = width_in * transform.GetScale();
     float height = height_in * transform.GetScale();
 
-    for (unsigned i = 0; i < width; i++)
-    {
+    for (unsigned i = 0; i < width; i++) {
         SetPixel(color, x + i, y);
         SetPixel(color, x + i, y + height - 1);
     }
 
-    for (unsigned i = 0; i < height; i++)
-    {
+    for (unsigned i = 0; i < height; i++) {
         SetPixel(color, x, y + i);
         SetPixel(color, x + width - 1, y + i);
     }
@@ -96,8 +81,7 @@ void Graphics::DrawCircle(Pixel color, float x_in, float y_in, float radius_in)
     int y0 = 0;
     int err = 0;
 
-    while (x0 >= y0)
-    {
+    while (x0 >= y0) {
         SetPixel(color, x + x0, y + y0);
         SetPixel(color, x + y0, y + x0);
         SetPixel(color, x - y0, y + x0);
@@ -110,8 +94,7 @@ void Graphics::DrawCircle(Pixel color, float x_in, float y_in, float radius_in)
         y0++;
         err += 1 + 2 * y0;
 
-        if (2 * (err - x0) + 1 > 0)
-        {
+        if (2 * (err - x0) + 1 > 0) {
             x0--;
             err += 1 - 2 * x0;
         }
@@ -127,10 +110,8 @@ void Graphics::FillRect(Pixel color, unsigned x_in, unsigned y_in, unsigned w_in
     float w = w_in * transform.GetScale();
     float h = h_in * transform.GetScale();
 
-    for (unsigned i = 0; i < w; i++)
-    {
-        for (unsigned j = 0; j < h; j++)
-        {
+    for (unsigned i = 0; i < w; i++) {
+        for (unsigned j = 0; j < h; j++) {
             SetPixel(color, x + i, y + j);
         }
     }
@@ -149,8 +130,7 @@ void Graphics::FillCircle(Pixel color, unsigned x_in, unsigned y_in, unsigned ra
     int y0 = 0;
     int err = 0;
 
-    while (x0 >= y0)
-    {
+    while (x0 >= y0) {
         DrawLine(color, x - x0, y + y0, x + x0, y + y0);
         DrawLine(color, x - y0, y + x0, x + y0, y + x0);
         DrawLine(color, x - x0, y - y0, x + x0, y - y0);
@@ -159,20 +139,17 @@ void Graphics::FillCircle(Pixel color, unsigned x_in, unsigned y_in, unsigned ra
         y0++;
         err += 1 + 2 * y0;
 
-        if (2 * (err - x0) + 1 > 0)
-        {
+        if (2 * (err - x0) + 1 > 0) {
             x0--;
             err += 1 - 2 * x0;
         }
     }
 }
 
-void Graphics::DrawImage(const Image &image, unsigned x, unsigned y, unsigned w, unsigned h)
+void Graphics::DrawImage(const Image& image, unsigned x, unsigned y, unsigned w, unsigned h)
 {
-    for (unsigned i = 0; i < w; i++)
-    {
-        for (unsigned j = 0; j < h; j++)
-        {
+    for (unsigned i = 0; i < w; i++) {
+        for (unsigned j = 0; j < h; j++) {
             float u = (float)i / (float)w;
             float v = (float)j / (float)h;
             Pixel color = image.SamplePixel(u, v);
@@ -181,35 +158,19 @@ void Graphics::DrawImage(const Image &image, unsigned x, unsigned y, unsigned w,
     }
 }
 
-unsigned Graphics::GetWidth() const
-{
-    return m_image->GetWidth();
-}
+unsigned Graphics::GetWidth() const { return m_image->GetWidth(); }
 
-unsigned Graphics::GetHeight() const
-{
-    return m_image->GetHeight();
-}
+unsigned Graphics::GetHeight() const { return m_image->GetHeight(); }
 
-Vector2 Graphics::GetCenter() const
-{
-    return Vector2(GetWidth() / 2.0f, GetHeight() / 2.0f);
-}
+Vector2 Graphics::GetCenter() const { return Vector2(GetWidth() / 2.0f, GetHeight() / 2.0f); }
 
-Vector2 Graphics::GetDimensions() const
-{
-    return Vector2(GetWidth(), GetHeight());
-}
+Vector2 Graphics::GetDimensions() const { return Vector2(GetWidth(), GetHeight()); }
 
-void Graphics::PushTransform(const Transform &transform)
-{
-    m_transform_stack.push(transform);
-}
+void Graphics::PushTransform(const Transform& transform) { m_transform_stack.push(transform); }
 
 Transform Graphics::PopTransform()
 {
-    if (m_transform_stack.empty())
-        return Transform::Identity();
+    if (m_transform_stack.empty()) return Transform::Identity();
     Transform transform = m_transform_stack.top();
     m_transform_stack.pop();
     return transform;
@@ -217,7 +178,12 @@ Transform Graphics::PopTransform()
 
 Transform Graphics::GetTransform() const
 {
-    if (m_transform_stack.empty())
-        return Transform::Identity();
+    if (m_transform_stack.empty()) return Transform::Identity();
     return m_transform_stack.top();
+}
+Vector2 Graphics::TransformPoint(const Vector2& point) const
+{
+    auto transform = GetTransform();
+    Vector2 result = transform.Apply(point);
+    return result;
 }

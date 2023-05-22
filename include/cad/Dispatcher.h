@@ -19,5 +19,15 @@ struct Dispatcher {
     void Register(std::unique_ptr<Syntax::ArgSignature> signature);
     void Dispatch(std::string command_string, Core::Output& stream);
     void Execute(Controller& controller);
+
+    std::vector<Syntax::ArgSignature*> GetCommands() {
+        std::vector<Syntax::ArgSignature*> commands;
+        for (auto& command : commands_map) {
+            for (auto& signature : command.second) {
+                commands.push_back(signature.get());
+            }
+        }
+        return commands;
+    }
 };
 }

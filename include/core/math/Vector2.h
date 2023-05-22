@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <string>
 
 namespace Core {
 
@@ -14,6 +15,13 @@ struct Vector2 {
     Vector2 operator-(const Vector2& other) const;
     Vector2 operator*(const Vector2& other) const;
     Vector2 operator/(const Vector2& other) const;
+    Vector2 operator+(float scalar) const {
+        return Vector2(x + scalar, y + scalar);
+    }
+     
+    Vector2 operator-(float scalar) const {
+        return Vector2(x - scalar, y - scalar);
+    }
     Vector2 operator*(float scalar) const;
     Vector2 operator/(float scalar) const;
 
@@ -32,10 +40,18 @@ struct Vector2 {
         dot = std::max(0.0f, std::min(dot, line_length));
         return line_start + line_direction * dot;
     }
-
+    float Dot(Vector2 other) const { return x * other.x + y * other.y; }
+    float Cross(Vector2 other) const { return x * other.y - y * other.x; }
     static bool IsInBounds(Vector2 point, Vector2 position, Vector2 size);
 
     static Vector2 FromAngle(float angle) { return Vector2(cos(angle), sin(angle)); }
+
+    Vector2 Normalized() const { return *this / Length(); }
+    float Angle() const { return (atan2(y, x)); }
+    Vector2 Rotate(float angle, Vector2 origin) const { return (*this - origin).Rotate(angle) + origin; }
+    std::string ToString() const {
+        return "(" + std::to_string(x) + ", " + std::to_string(y) + ")";
+    }
 };
 
 } // namespace Core

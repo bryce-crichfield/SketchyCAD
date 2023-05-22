@@ -47,8 +47,6 @@ void Window::Update(Controller& controller)
     
     if (m_toggle_shortcut(controller.GetInput()))
     {
-        // m_is_open = !m_is_open;
-
         if (!static_interactor.HasLock()) {
             static_interactor.ForceLock();
         } else {
@@ -58,53 +56,39 @@ void Window::Update(Controller& controller)
 
     }
 
-    if (!m_is_open)
+    // If the mouse is clicking in the body of the window, request focus
+    auto& input = controller.GetInput();
+    Vector2 mouse_position = Vector2(input.GetMouseX(), input.GetMouseY());
+    bool is_inside = Vector2::IsInBounds(mouse_position, GetPosition(), GetSize());
+
+    if (static_interactor.HasLock())
     {
-        // If the mouse is clicking in the body of the window, request focus
-        auto& input = controller.GetInput();
-        Vector2 mouse_position = Vector2(input.GetMouseX(), input.GetMouseY());
-        bool is_inside = Vector2::IsInBounds(mouse_position, GetPosition(), GetSize());
-
-        if (is_inside && input.IsPressed(Mouse::LEFT))
-        {
-            // Entry condition for interaction lock
-            // static_interactor.TryLock();
-        }
-
-        if (static_interactor.HasLock())
-        {
-            // Update the title bar and update this window's position in response
-            m_drag_bar.Update(controller, *this, m_title);
-            SetPosition(m_drag_bar.GetPosition().x, m_drag_bar.GetPosition().y + m_drag_bar.GetSize().y);
-        }
-
-        // Update the root panel to match the window's position and size
-        m_root_panel->SetPosition(GetPosition().x, GetPosition().y);
-        m_root_panel->SetSize(GetSize().x, GetSize().y);
-
-        if (static_interactor.HasLock())
-        {
-            this->OnInput(controller);
-            this->m_root_panel->Input(controller);
-            this->OnUpdate(controller);
-            this->m_root_panel->Update(controller);
-        }
-
-        this->OnRender(controller);
-        this->m_root_panel->Render(controller);
-
-
-        if (static_interactor.HasLock()) {
-            DrawCursor(controller);
-        }
-
-        // if (!is_inside && state.input.IsPressed(MouseButton::LEFT))
-        // {
-        //     // Exit condition for interaction lock
-        //     static_interactor.ReleaseLock();
-        // }
-
+        // Update the title bar and update this window's position in response
+        m_drag_bar.Update(controller, *this, m_title);
+        SetPosition(m_drag_bar.GetPosition().x, m_drag_bar.GetPosition().y + m_drag_bar.GetSize().y);
     }
+
+    // Update the root panel to match the window's position and size
+    m_root_panel->SetPosition(GetPosition().x, GetPosition().y);
+    m_root_panel->SetSize(GetSize().x, GetSize().y);
+
+    if (static_interactor.HasLock())
+    {
+        this->OnInput(controller);
+        this->m_root_panel->Input(controller);
+       
+    }
+     this->OnUpdate(controller);
+        this->m_root_panel->Update(controller);
+
+    this->OnRender(controller);
+    this->m_root_panel->Render(controller);
+
+
+    if (static_interactor.HasLock()) {
+        // DrawCursor(controller);
+    }
+
 }
 
     void Window::DragBar::Update(Controller& controller, Window & parent, std::string title)

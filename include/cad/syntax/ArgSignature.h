@@ -22,6 +22,16 @@ struct ArgSignature {
     std::string GetKeyword() { return keyword; }
     std::vector<Arg::Type> GetSignature() { return signature; }
     unsigned GetArgCount() { return signature.size(); }
+    std::string GetName() {
+        std::string name = keyword + "(";
+        for (auto arg_type : signature) {
+            name += Arg::TypeToString(arg_type) + ", ";
+        }
+        name.pop_back();
+        name.pop_back();
+        name += ")";
+        return name;
+    }
 
     bool Matches(std::vector<Arg> args)
     {

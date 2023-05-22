@@ -79,6 +79,31 @@ struct Arg {
         return value_float;
     }
 
+    Core::Vector2 AsVector2() {
+        if (type != Type::VECTOR2) {
+            throw std::runtime_error("Arg is not a vector2");
+        }
+
+        return value_vector2;
+    }
+
     Type GetType() { return type; }
+
+    static std::string TypeToString(Type type) {
+        switch (type) {
+        case Type::FLOAT:
+            return "float";
+        case Type::INTEGER:
+            return "integer";
+        case Type::BOOLEAN:
+            return "boolean";
+        case Type::VECTOR2:
+            return "vector2";
+        case Type::STRING:
+            return "string";
+        default:
+            return "unknown";
+        }
+    }
 };
 }

@@ -2,6 +2,7 @@
 
 #include <cad/Controller.h>
 #include <cad/syntax/Syntax.h>
+#include <cad/object/ObjectBuilder.h>
 
 namespace Cad {
 
@@ -151,4 +152,32 @@ struct ClearCommand : public Cad::Command {
     };
 };
 
-}
+struct CreateCircle : public Cad::Command {
+    Core::Vector2 center;
+    float radius;
+
+    CreateCircle(Core::Vector2 center, float radius) : center(center), radius(radius) {}
+
+    void Forward(Cad::Controller& cad) override{
+        auto& registry = cad.GetRegistry();
+        auto circle_builder = Cad::CircleObjectBuilder(center, radius);
+        registry.CreateObject(circle_builder);
+    };
+
+    void Backward(Cad::Controller &cad) override {
+        std::cout << "undo" << std::endl;
+    }
+
+    struct Signature : Cad::Syntax::ArgSignature {
+        Signature() : ArgSignature("circle", {Cad::Syntax::Arg::Type::VECTOR2, Cad::Syntax::Arg::Type::FLOAT}) {}
+
+        std::unique_ptr<Cad::Command> Create(std::vector<Cad::Syntax::Arg> args) override {
+            Core::Vector2 center = args[0].AsVector2();
+            float radius = args[1].AsFloat();
+            return std::make_unique<CreateCircle>(center, radius);
+        }
+    };
+};
+
+
+} // namespace Cad

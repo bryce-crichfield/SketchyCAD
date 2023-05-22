@@ -22,6 +22,8 @@ class ImageGraphics : public Graphics {
     void Clear(Pixel color = Color::BLACK) override;
     void SetPixel(Pixel color, unsigned x, unsigned y) override;
     void DrawLine(Pixel color, float x0, float y0, float x1, float y1) override;
+    void DrawDotted(Pixel color, float x0, float y0, float x1, float y1, float width) override;
+
     void DrawRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height) override;
     void DrawCircle(Pixel color, float x, float y, float radius) override;
     void DrawTriangle(Pixel color, float x0, float y0, float x1, float y1, float x2, float y2) override

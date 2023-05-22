@@ -1,9 +1,12 @@
 #include <cad/Viewfinder.h>
 #include <cad/Controller.h>
+#include <core/Core.h>
 
 namespace Cad {
 
-SnapViewfinder::SnapViewfinder() {}
+SnapViewfinder::SnapViewfinder() : ray(Core::Vector2(0, 0), Core::Vector2(1, 0)) {
+    cursor = std::make_unique<Cursor>();
+}
 
 void SnapViewfinder::Pan(int dx, int dy)
 {
@@ -23,21 +26,24 @@ void SnapViewfinder::Zero(Core::Controller& controller)
 
 Core::Vector2 SnapViewfinder::GetCursor(Core::Controller& controller)
 {
-    Core::Input& input = controller.GetInput();
-    Core::Vector2 cursor = input.GetMousePosition();
-    Core::Transform view_transform = GetViewTransform();
-    Core::Vector2 cursor_world = view_transform.Inverse().Apply(cursor);
+    // Core::Input& input = controller.GetInput();
+    // Core::Vector2 cursor = input.GetMousePosition();
+    // Core::Transform view_transform = GetViewTransform();
+    // Core::Vector2 cursor_world = view_transform.Inverse().Apply(cursor);
 
-    // Snap cursor to grid
-    float grid_x = std::round(cursor_world.x / grid_size) * grid_size;
-    float grid_y = std::round(cursor_world.y / grid_size) * grid_size;
-    cursor_world = Core::Vector2(grid_x, grid_y);
-    cursor = view_transform.Apply(cursor_world);
+    // // Snap cursor to grid
+    // float grid_x = std::round(cursor_world.x / grid_size) * grid_size;
+    // float grid_y = std::round(cursor_world.y / grid_size) * grid_size;
+    // cursor_world = Core::Vector2(grid_x, grid_y);
+    // cursor = view_transform.Apply(cursor_world);
 
-    return cursor;
+    // return cursor;
+
+    auto vector = cursor->GetScreenPosition();
+    return vector;
 }
 
-void SnapViewfinder::Update(Core::Controller& controller)
+void SnapViewfinder::Update(Core::Controller& controller, ObjectRegistry& registry)
 {
     Core::Input& input = controller.GetInput();
     Core::Graphics& graphics = controller.GetGraphics();
@@ -72,30 +78,40 @@ void SnapViewfinder::Update(Core::Controller& controller)
     graphics.DrawLine(Core::Color::RED, origin_screen.x, 0, origin_screen.x, graphics.GetHeight());
     graphics.DrawLine(Core::Color::GREEN, 0, origin_screen.y, graphics.GetWidth(), origin_screen.y);
 
+    // If the mouse is scrolling then zoom in or out
+    // also adjust the zoom based on the mouse position
+    // so it appears to zoom in on the mouse position
+    if (input.GetScrollDeltaY() != 0) {
+        Core::Vector2 cursor_before_zoom = input.GetMousePosition();
+        Zoom(input.GetScrollDeltaY());
+        Core::Vector2 cursor_after_zoom = GetCursor(controller);
+        Core::Vector2 cursor_delta = cursor_after_zoom - cursor_before_zoom;
+        pan_x -= (cursor_delta.x);
+        pan_y -= (cursor_delta.y) ;
+    }
+
+    // Do mouse dragging
+    float dx = input.GetMouseDeltaX();
+    float dy = input.GetMouseDeltaY();
+    if (input.IsHeld(Core::Mouse::MIDDLE)) {
+        float width = graphics.GetWidth();
+        float scaling = (width) * controller.GetChronometer().GetDelta().AsSeconds();
+        pan_x += (dx * scaling) / 10.0f;
+        pan_y += (dy * scaling) / 10.0f;
+    }
+
     // Draw the cursor as a cross hair and reticle
     Core::Vector2 screen_cursor = GetCursor(controller);
-    // Draw reticle as four corners centered on the cursor
-    float topleft_x = screen_cursor.x - 2;
-    float topleft_y = screen_cursor.y - 2;
-    float bottomright_x = screen_cursor.x + 2;
-    float bottomright_y = screen_cursor.y + 2;
 
-    graphics.DrawLine(Core::Color::WHITE, topleft_x, topleft_y, topleft_x + 1, topleft_y);
-    graphics.DrawLine(Core::Color::WHITE, topleft_x, topleft_y, topleft_x, topleft_y + 1);
-    graphics.DrawLine(Core::Color::WHITE, bottomright_x, bottomright_y, bottomright_x - 1, bottomright_y);
-    graphics.DrawLine(Core::Color::WHITE, bottomright_x, bottomright_y, bottomright_x, bottomright_y - 1);
+    if (input.IsHeld(Core::Key::LShift)) {
+        cursor->SetGridSnapped(true);
+    } else {
+        cursor->SetGridSnapped(false);
+    }
+    // draw the raycast line
+    // controller.GetGraphics().DrawLine(Core::Color::WHITE, ray.x, ray.y, ray.x + ray.dx * 1000, ray.y + ray.dy * 1000);
+    cursor->Update(controller, registry, view_transform, grid_size, ray);
 
-    graphics.DrawLine(Core::Color::WHITE, topleft_x, bottomright_y, topleft_x + 1, bottomright_y);
-    graphics.DrawLine(Core::Color::WHITE, topleft_x, bottomright_y, topleft_x, bottomright_y - 1);
-    graphics.DrawLine(Core::Color::WHITE, bottomright_x, topleft_y, bottomright_x - 1, topleft_y);
-    graphics.DrawLine(Core::Color::WHITE, bottomright_x, topleft_y, bottomright_x, topleft_y + 1);
-
-
-    // Draw the four lines of the cross hair
-    graphics.DrawLine(Core::Color::WHITE, screen_cursor.x - 10, screen_cursor.y, screen_cursor.x - 3, screen_cursor.y);
-    graphics.DrawLine(Core::Color::WHITE, screen_cursor.x + 3, screen_cursor.y, screen_cursor.x + 10, screen_cursor.y);
-    graphics.DrawLine(Core::Color::WHITE, screen_cursor.x, screen_cursor.y - 10, screen_cursor.x, screen_cursor.y - 3);
-    graphics.DrawLine(Core::Color::WHITE, screen_cursor.x, screen_cursor.y + 3, screen_cursor.x, screen_cursor.y + 10);
 }
 
 Core::Transform SnapViewfinder::GetViewTransform()

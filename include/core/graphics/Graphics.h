@@ -8,6 +8,7 @@
 
 namespace Core {
 class Graphics {
+  protected:
     std::stack<Transform> m_transform_stack;
 
   public:
@@ -21,6 +22,9 @@ class Graphics {
     Transform PopTransform();
     Transform GetTransform() const;
     Vector2 TransformPoint(const Vector2& point) const;
+    int GetStackSize() {
+        return m_transform_stack.size();
+    }
 
     virtual unsigned GetWidth() const = 0;
     virtual unsigned GetHeight() const = 0;
@@ -28,6 +32,7 @@ class Graphics {
     virtual void Clear(Pixel color = Color::BLACK) = 0;
     virtual void SetPixel(Pixel color, unsigned x, unsigned y) = 0;
     virtual void DrawLine(Pixel color, float x0, float y0, float x1, float y1) = 0;
+    virtual void DrawDotted(Pixel color, float x0, float y0, float x1, float y1, float width) = 0;
     virtual void DrawRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height) = 0;
     virtual void DrawCircle(Pixel color, float x, float y, float radius) = 0;
     virtual void DrawTriangle(Pixel color, float x0, float y0, float x1, float y1, float x2, float y2) = 0;

@@ -17,7 +17,7 @@ struct Debouncer {
 
     DebouncerState state = DebouncerState::Idle;
     Duration current_timer = Duration(0);
-    const Core::Duration wait_time = Duration::FromMilliseconds(100);
+    const Core::Duration wait_time = Duration::FromMilliseconds(250);
     Timer wait_timer = Timer(wait_time);
 
   protected:
@@ -43,7 +43,7 @@ struct Debouncer {
         case DebouncerState::Pressed:
             if (InputIsHeld(input)) {
                 current_timer = current_timer + chrono.GetDelta();
-                if (current_timer > Duration::FromMilliseconds(350)) {
+                if (current_timer > Duration::FromMilliseconds(250)) {
                     state = DebouncerState::Held;
                 }
             } else {
@@ -61,7 +61,6 @@ struct Debouncer {
         bool is_up_time = wait_timer.Update(chrono);
         bool is_held = state == DebouncerState::Held;
         if (is_held && is_up_time) {
-            // wait_timer.Reset();
             return true;
         }
 

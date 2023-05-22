@@ -64,6 +64,7 @@ std::vector<Syntax::Arg> Syntax::ArgParser::Parse(std::vector<std::string> args)
 
     for (std::string arg : args) {
         if (auto value = TryParseFloat(arg)) {
+            std::cout << "Float: " << value.value().AsFloat() << std::endl;
             result.push_back(value.value());
             continue;
         }
@@ -76,6 +77,7 @@ std::vector<Syntax::Arg> Syntax::ArgParser::Parse(std::vector<std::string> args)
             continue;
         }
         if (auto value = TryParseVector2(arg)) {
+            std::cout << "Vector2: " << value.value().AsVector2().x << ", " << value.value().AsVector2().y << std::endl;
             result.push_back(value.value());
             continue;
         }

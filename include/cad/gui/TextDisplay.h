@@ -27,7 +27,18 @@ struct TextDisplay : public Core::Gui::Panel {
         graphics.DrawRect(Core::Color::WHITE, x, y, w, h);
 
         std::vector<std::string> lines;
-        controller.GetOutput().Dump(lines);
+        std::string output = controller.GetOutput().Dump();
+        std::string line = "";
+        for (auto character : output) {
+            if (character == '\n') {
+                lines.push_back(line);
+                line = "";
+            } else {
+                line += character;
+            }
+        }
+        lines.push_back(line);
+        
         unsigned font_size = font_graphics.GetDisplayWidth();
         unsigned max_lines = (h - (2 * padding)) / font_size;
         unsigned max_chars = (w - (2 * padding)) / font_size;

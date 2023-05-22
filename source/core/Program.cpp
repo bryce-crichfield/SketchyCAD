@@ -56,7 +56,7 @@ void Program::Execute()
 
         viewport->UpdateFramebuffer();
         viewport->Flush();
-        m_output->Flush();
+        // m_output->Flush();
     } while (viewport->IsOpen());
 }
 } // namespace Core

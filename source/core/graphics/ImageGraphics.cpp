@@ -49,6 +49,60 @@ void ImageGraphics::DrawLine(Pixel color, float x0_in, float y0_in, float x1_in,
     }
 }
 
+void ImageGraphics::DrawDotted(Pixel color, float x0_in, float y0_in, float x1_in, float y1_in, float width) {
+    // Draw a line using the fast delta method
+    Transform transform = GetTransform();
+    Vector2 p0 = transform.Apply(Vector2(x0_in, y0_in));
+    Vector2 p1 = transform.Apply(Vector2(x1_in, y1_in));
+
+    int x0 = p0.x;
+    int y0 = p0.y;
+    int x1 = p1.x;
+    int y1 = p1.y;
+
+    int dx = abs(x1 - x0);
+    int sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0);
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
+    int e2;
+    int dot_index = 0;
+    bool dot = true;
+    while (true) {
+        if (dot) { 
+            SetPixel(color, x0, y0);
+        }
+        dot_index++;
+        if (dot_index == width) {
+            dot_index = 0;
+            dot = !dot;
+        }
+
+
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+
+        e2 = 2 * err;
+
+        if (e2 >= dy) {
+            err += dy;
+            x0 += sx;
+        }
+
+        if (e2 <= dx) {
+            err += dx;
+            y0 += sy;
+        }
+    }
+    
+}
+
+
+
+
+
+
 void ImageGraphics::DrawRect(Pixel color, unsigned x_in, unsigned y_in, unsigned width_in, unsigned height_in)
 {
     Transform transform = GetTransform();

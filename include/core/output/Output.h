@@ -9,9 +9,8 @@ namespace Core {
 struct Output {
     virtual void Write(std::string text) = 0;
     virtual void Writeln(std::string text) = 0;
-    virtual std::string Flush() = 0;
     virtual void Clear() = 0;
-    virtual void Dump(std::vector<std::string>& lines) = 0;
+     virtual std::string Dump() const = 0;
 };
 
 class BufferedOutput : public Output {
@@ -29,28 +28,16 @@ class BufferedOutput : public Output {
         buffer << text << std::endl;
     }
 
-    std::string Flush() override
-    {
-        std::string result = buffer.str();
-        buffer.str("");
-        buffer.clear();
-
-        if (result.size() > 0)
-            std::cout << result << std::endl;
-        return result;
-    }
-
     void Clear() override
     {
         buffer.str("");
         buffer.clear();
     }
 
-    virtual void Dump(std::vector<std::string>& lines) {
-        std::string line;
-        while (std::getline(buffer, line)) {
-            lines.push_back(line);
-        }
+    virtual std::string Dump() const {
+        // Copy lines without destroying them
+        std::string lines = buffer.str();
+        return lines;
     }
 
 };

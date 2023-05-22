@@ -13,11 +13,11 @@ struct Pixel {
 };
 
 namespace Color {
-const Pixel BLACK(0, 0, 0);
+const Pixel BLACK(0x21, 0x21, 0x21);
 const Pixel DARK_GRAY(64, 64, 64);
 const Pixel GRAY(128, 128, 128);
 const Pixel LIGHT_GRAY(192, 192, 192);
-const Pixel WHITE(255, 255, 255);
+const Pixel WHITE(255, 255, 220);
 const Pixel RED(136, 0, 0);
 const Pixel CYAN(170, 255, 238);
 const Pixel PURPLE(204, 68, 204);

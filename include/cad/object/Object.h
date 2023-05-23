@@ -19,9 +19,17 @@ class Object {
     virtual std::unique_ptr<Object> Clone() const = 0;
     virtual std::string ToString() const = 0;
 
-    bool IsSelected() const;
-    void Select();
-    void Deselect();
+    bool IsSelected() const {
+        return is_selected;
+    }
+
+    void Select() {
+        is_selected = true;
+    }
+
+    void Deselect() {
+        is_selected = false;
+    }
 };
 
 struct ObjectPredicate {

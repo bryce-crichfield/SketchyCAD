@@ -4,7 +4,7 @@
 
 namespace Cad {
 
-SnapViewfinder::SnapViewfinder() : ray(Core::Vector2(0, 0), Core::Vector2(1, 0)) {
+SnapViewfinder::SnapViewfinder() : ray(Core::Vector2(0, 0), Core::Vector2(2, 1)) {
     cursor = std::make_unique<Cursor>();
 }
 

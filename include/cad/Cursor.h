@@ -93,8 +93,10 @@ struct IntersectionReticle : public Reticle {
         Reticle::Draw(controller, screen_point);
 
         auto& graphics = controller.GetGraphics();
-        graphics.DrawRect(Core::Color::GREEN, screen_point.x - 3, screen_point.y - 3, 6, 6);
-    }
+        // Draw an X at the intersection point
+        graphics.DrawLine(Core::Color::GREEN, screen_point.x - 3, screen_point.y - 3, screen_point.x + 3, screen_point.y + 3);
+        graphics.DrawLine(Core::Color::GREEN, screen_point.x + 3, screen_point.y - 3, screen_point.x - 3, screen_point.y + 3);
+            }
 };
 
 struct SnapVisitor : public ObjectVisitor {
@@ -158,59 +160,67 @@ struct Ray {
 
     Ray(Core::Vector2 origin, Core::Vector2 direction) : origin(origin), direction(direction) {}
 
-    std::optional<Core::Vector2> Intersects(Core::Vector2 start, Core::Vector2 end)
-    {
-        // check for ray intersection
-        // see if the input line intersects the ray
+    std::optional<Core::Vector2> GetLineIntersection(Core::Vector2 start, Core::Vector2 end) {
+        Core::Vector2 p = origin;
+        p = p - (direction * Core::Vector2(1000, 1000));
+        Core::Vector2 r = (direction * Core::Vector2(1000, 1000)) * 2;
 
-        // https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+        Core::Vector2 q = start;
+        Core::Vector2 s = end - start;
 
-        auto r = direction;
-        auto s = end - start;
-        auto q_p = start - origin;
 
-        auto r_cross_s = r.Cross(s);
-        auto q_p_cross_r = q_p.Cross(r);
+        float r_cross_s = r.Cross(s);
+        float q_minus_p_cross_r = (q - p).Cross(r);
 
-        if (r_cross_s == 0) {
+        if (r_cross_s == 0 && q_minus_p_cross_r == 0) {
+            // lines are collinear
+            return std::nullopt;
+        }
+
+        if (r_cross_s == 0 && q_minus_p_cross_r != 0) {
             // lines are parallel
             return std::nullopt;
         }
 
-        auto t = q_p_cross_r / r_cross_s;
+        float t = (q - p).Cross(s) / r_cross_s;
+        float u = (q - p).Cross(r) / r_cross_s;
 
-        if (t < 0 || t > 1) {
-            // intersection is outside of the line segment
+        if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+            auto result = p + (r * t);
+            return result;
+        }
+
+        if (t >= 0 && t <= 1) {
+            // lines intersect, but segments do not
             return std::nullopt;
         }
 
-        auto u = q_p.Cross(s) / r_cross_s;
-
-        if (u < 0 || u > 1) {
-            // intersection is outside of the line segment
-            return std::nullopt;
-        }
-
-        return s * (start + t);
-        
+        // lines do not intersect
+        return std::nullopt;
     }
 };
 
 struct RaycastSnapVisitor : public ObjectVisitor {
     std::vector<SnapVector> snap_vectors;
+    Core::Vector2 mouse_pos;
     Core::Transform view_transform;
-    Ray ray;
+    std::vector<Ray> rays;
 
-    RaycastSnapVisitor(Ray ray, Core::Transform transform) : ray(ray), view_transform(transform) {}
+    RaycastSnapVisitor(std::vector<Ray>  rays, Core::Transform transform, Core::Vector2 mouse_pos) : rays(rays), view_transform(transform),
+        mouse_pos(mouse_pos) {}
 
     void Visit(LineObject& object) override
     {
         // check for line intersection
-        auto intersection = ray.Intersects(object.start, object.end);
+        for (auto &ray : rays) {
+        auto intersection = ray.GetLineIntersection(object.start, object.end);
         if (!intersection.has_value()) return;
-
         auto intersection_screen = view_transform.Apply(intersection.value());
-        snap_vectors.push_back(SnapVector(intersection_screen, ReticleType::Intersection));
+        float distance_from_mouse = (mouse_pos - intersection_screen).Length();
+        if (distance_from_mouse < 10) {
+            snap_vectors.push_back(SnapVector(intersection_screen, ReticleType::Intersection));
+        }
+        }
     }
 
     void Visit(CircleObject& object) override
@@ -280,17 +290,30 @@ class Cursor {
         }
 
         // Using the SnapVisitor, iterate over the objects and determine if the cursor is near any of the objects
+        // std::vector<SnapVector> snap_vectors;
         SnapVisitor snap_visitor(Core::Vector2(x, y), view_transform, grid_size);
         registry.VisitObjects(snap_visitor);
         auto snap_vectors = snap_visitor.CollectResults();
 
         // Also check for raycast intersections
-        RaycastSnapVisitor raycast_snap_visitor(raycast, view_transform);
+        RaycastSnapVisitor raycast_snap_visitor({raycast}, view_transform, Core::Vector2(x, y));
         registry.VisitObjects(raycast_snap_visitor);
         std::vector<SnapVector> raycast_snap_vectors = raycast_snap_visitor.CollectResults();
         for (auto snap_vector : raycast_snap_vectors) {
             snap_vectors.push_back(std::move(snap_vector));
         }
+
+        // Draw the ray as purple dotted line
+
+        auto& graphics = controller.GetGraphics();
+        Core::Vector2 ray_origin_screen = view_transform.Apply(raycast.origin);
+        // Find the line on the screen that passes through the ray origin and extends to the edge of the screen
+        float ray_start_x = ray_origin_screen.x - raycast.direction.x * 1000;
+        float ray_start_y = ray_origin_screen.y - raycast.direction.y * 1000;
+        float ray_end_x = ray_origin_screen.x + raycast.direction.x * 1000;
+        float ray_end_y = ray_origin_screen.y + raycast.direction.y * 1000;
+        controller.GetGraphics().DrawDotted(
+            Core::Color::PURPLE, ray_start_x, ray_start_y, ray_end_x, ray_end_y, 3);
 
         // If no possible snaps, just draw the gridpoint reticle
         if (snap_vectors.empty()) {
@@ -312,14 +335,11 @@ class Cursor {
         }
 
         // Draw the reticle
-        if (closest_snap_vector->type != ReticleType::Intersection) {
         x = closest_snap_vector->screen_point.x;
         y = closest_snap_vector->screen_point.y;
-        }
+        
         auto reticle = CreateReticle(closest_snap_vector->type);
         reticle->Draw(controller, closest_snap_vector->screen_point);
-
-
     }
 
     Core::Vector2 GetWorldPosition() const { return Core::Vector2(x, y); }

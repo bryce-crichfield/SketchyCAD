@@ -378,7 +378,7 @@ struct TranslateModeHandler : public InputHandler {
 Application::Application(Core::Gui::InteractionLock& lock) : focus(lock)
 {
     registry = std::make_unique<ObjectRegistry>();
-    viewfinder = std::make_unique<SnapViewfinder>();
+    viewfinder = std::make_unique<Viewfinder>();
     input_handler = std::make_unique<SelectionModeHandler>();
     dispatcher = std::make_shared<Dispatcher>();
 }

@@ -4,19 +4,19 @@
 
 namespace Cad {
 
-SnapViewfinder::SnapViewfinder() : ray(Core::Vector2(0, 0), Core::Vector2(2, 1)) {
+Viewfinder::Viewfinder() : ray(Core::Vector2(0, 0), Core::Vector2(2, 1)) {
     cursor = std::make_unique<Cursor>();
 }
 
-void SnapViewfinder::Pan(int dx, int dy)
+void Viewfinder::Pan(int dx, int dy)
 {
     pan_x += dx * scale;
     pan_y += dy * scale;
 }
 
-void SnapViewfinder::Zoom(int delta) { scale += delta * 2.0f; }
+void Viewfinder::Zoom(int delta) { scale += delta * 2.0f; }
 
-void SnapViewfinder::Zero(Core::Controller& controller)
+void Viewfinder::Zero(Core::Controller& controller)
 {
     Core::Graphics& graphics = controller.GetGraphics();
     pan_x = graphics.GetWidth() / 2.0f;
@@ -24,7 +24,7 @@ void SnapViewfinder::Zero(Core::Controller& controller)
     scale = 1.0f;
 }
 
-Core::Vector2 SnapViewfinder::GetCursor(Core::Controller& controller)
+Core::Vector2 Viewfinder::GetCursor(Core::Controller& controller)
 {
     // Core::Input& input = controller.GetInput();
     // Core::Vector2 cursor = input.GetMousePosition();
@@ -43,7 +43,7 @@ Core::Vector2 SnapViewfinder::GetCursor(Core::Controller& controller)
     return vector;
 }
 
-void SnapViewfinder::Update(Core::Controller& controller, ObjectRegistry& registry)
+void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry)
 {
     Core::Input& input = controller.GetInput();
     Core::Graphics& graphics = controller.GetGraphics();
@@ -114,7 +114,7 @@ void SnapViewfinder::Update(Core::Controller& controller, ObjectRegistry& regist
 
 }
 
-Core::Transform SnapViewfinder::GetViewTransform()
+Core::Transform Viewfinder::GetViewTransform()
 {
     Core::Transform view_transform(pan_x, pan_y, scale, 0);
     return view_transform;

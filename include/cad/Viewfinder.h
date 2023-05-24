@@ -22,7 +22,7 @@ class Viewfinder {
     void Snap(float size) { grid_size = size; }
 
     Core::Vector2 GetCursor(Core::Controller& controller);
-    void Update(Core::Controller& controller, ObjectRegistry& registry);
+    void Update(Core::Controller& controller, ObjectRegistry& registry, RayBank& ray_bank);
     Core::Transform GetViewTransform();
 };
 } // namespace Cad

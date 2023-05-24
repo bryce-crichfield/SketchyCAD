@@ -56,65 +56,6 @@ struct SnapVisitor : public ObjectVisitor {
     }
 };
 
-struct RaycastSnapVisitor : public ObjectVisitor {
-    std::vector<SnapVector> snap_vectors;
-    Core::Vector2 mouse_pos;
-    Core::Transform view_transform;
-    std::vector<Ray> rays;
-
-    RaycastSnapVisitor(std::vector<Ray> rays, Core::Transform transform, Core::Vector2 mouse_pos)
-        : rays(rays), view_transform(transform), mouse_pos(mouse_pos)
-    {
-    }
-
-    void Visit(LineObject& object) override
-    {
-        // check for line intersection
-        for (auto& ray : rays) {
-            auto intersection = ray.GetLineIntersection(object.start, object.end);
-            if (!intersection.has_value()) return;
-            auto intersection_screen = view_transform.Apply(intersection.value());
-            float distance_from_mouse = (mouse_pos - intersection_screen).Length();
-            if (distance_from_mouse < 10) {
-                snap_vectors.push_back(SnapVector(intersection_screen, ReticleType::Intersection));
-            }
-        }
-    }
-
-    void Visit(CircleObject& object) override
-    {
-        // check for circle intersection
-        // check for circle tangent
-    }
-
-    void Visit(PolylineObject& object) override
-    {
-        // check for line intersection
-        // check for line tangent
-        // check for circle intersection
-        // check for circle tangent
-    }
-
-    std::vector<SnapVector> CollectResults()
-    {
-        // return a vector of SnapVectors
-        auto result = std::move(snap_vectors);
-        snap_vectors.clear();
-        return result;
-    }
-};
-
-std::unique_ptr<Reticle> Cursor::create_reticle_from_type(ReticleType type)
-{
-    switch (type) {
-    case ReticleType::Grid: return std::make_unique<GridpointReticle>();
-    case ReticleType::Midpoint: return std::make_unique<MidpointReticle>();
-    case ReticleType::Endpoint: return std::make_unique<EndpointReticle>();
-    case ReticleType::Intersection: return std::make_unique<IntersectionReticle>();
-    default: return std::make_unique<GridpointReticle>(); ;
-    }
-}
-
 void Cursor::update_mouse_location(Core::Controller& controller)
 {
     Core::Vector2 mouse_position = controller.GetInput().GetMousePosition();
@@ -135,18 +76,11 @@ void Cursor::snap_cursor_to_grid(Core::Controller& controller, Core::Transform v
 }
 
 void Cursor::collect_snap_vectors(std::vector<SnapVector>& snap_vectors, ObjectRegistry& registry,
-    Core::Transform view_transform, float grid_size, Ray raycast)
+    Core::Transform view_transform, float grid_size)
 {
     SnapVisitor snap_visitor(Core::Vector2(x, y), view_transform, grid_size);
     registry.VisitObjects(snap_visitor);
     for (auto vector : snap_visitor.CollectResults()) {
-        snap_vectors.push_back(std::move(vector));
-    }
-
-    // Also check for raycast intersections
-    RaycastSnapVisitor raycast_snap_visitor({raycast}, view_transform, Core::Vector2(x, y));
-    registry.VisitObjects(raycast_snap_visitor);
-    for (auto vector : raycast_snap_visitor.CollectResults()) {
         snap_vectors.push_back(std::move(vector));
     }
 }
@@ -169,7 +103,7 @@ SnapVector Cursor::get_closest_snap_vector(std::vector<SnapVector>& snap_vectors
 }
 
 void Cursor::Update(Core::Controller& controller, ObjectRegistry& registry, Core::Transform view_transform,
-    float grid_size, Ray raycast)
+    float grid_size, RayBank& ray_bank)
 {
     // Update x and y to the mouse position, and if grid snapping is enabled, snap to the grid
     update_mouse_location(controller);
@@ -179,7 +113,13 @@ void Cursor::Update(Core::Controller& controller, ObjectRegistry& registry, Core
 
     // Search for any possible snap vectors
     std::vector<SnapVector> snap_vectors;
-    collect_snap_vectors(snap_vectors, registry, view_transform, grid_size, raycast);
+    collect_snap_vectors(snap_vectors, registry, view_transform, grid_size);
+
+    std::vector<Core::Vector2> snap_points;
+    for (auto vector : ray_bank.GetSnapPoints(registry, view_transform, controller.GetInput().GetMousePosition())) {
+        auto snap_vector = SnapVector(vector, ReticleType::Intersection);
+        snap_vectors.push_back(snap_vector);
+    }
 
     // If no possible snaps, just draw the gridpoint reticle
     if (snap_vectors.empty()) {
@@ -194,11 +134,11 @@ void Cursor::Update(Core::Controller& controller, ObjectRegistry& registry, Core
         auto closest_snap_vector = get_closest_snap_vector(snap_vectors, mouse_position);
         x = closest_snap_vector.screen_point.x;
         y = closest_snap_vector.screen_point.y;
-        auto reticle = create_reticle_from_type(closest_snap_vector.type);
+        auto reticle = Reticle::FromType(closest_snap_vector.type);
         reticle->Draw(controller, closest_snap_vector.screen_point);
     }
 
     // Finally draw any raycasts
-    raycast.Draw(controller.GetGraphics(), view_transform);
+    // raycast.Draw(controller.GetGraphics(), view_transform);
 }
 }; // namespace Cad

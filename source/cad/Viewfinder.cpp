@@ -43,7 +43,7 @@ Core::Vector2 Viewfinder::GetCursor(Core::Controller& controller)
     return vector;
 }
 
-void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry)
+void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry, RayBank& ray_bank)
 {
     Core::Input& input = controller.GetInput();
     Core::Graphics& graphics = controller.GetGraphics();
@@ -73,10 +73,9 @@ void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry)
     }
 
     // Draw the origin lines
-    Core::Vector2 origin = Core::Vector2(0, 0);
-    Core::Vector2 origin_screen = view_transform.Apply(origin);
-    graphics.DrawLine(Core::Color::RED, origin_screen.x, 0, origin_screen.x, graphics.GetHeight());
-    graphics.DrawLine(Core::Color::GREEN, 0, origin_screen.y, graphics.GetWidth(), origin_screen.y);
+    ray_bank.AddRay(Core::Vector2(0, 0), Core::Vector2(1, 0), Core::Color::GREEN);
+    ray_bank.AddRay(Core::Vector2(0, 0), Core::Vector2(0, 1), Core::Color::RED);
+
 
     // If the mouse is scrolling then zoom in or out
     // also adjust the zoom based on the mouse position
@@ -110,7 +109,7 @@ void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry)
     }
     // draw the raycast line
     // controller.GetGraphics().DrawLine(Core::Color::WHITE, ray.x, ray.y, ray.x + ray.dx * 1000, ray.y + ray.dy * 1000);
-    cursor->Update(controller, registry, view_transform, grid_size, ray);
+    cursor->Update(controller, registry, view_transform, grid_size, ray_bank);
 
 }
 

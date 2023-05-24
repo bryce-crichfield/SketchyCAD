@@ -25,6 +25,7 @@ class Application {
     std::unique_ptr<Viewfinder> viewfinder;
     std::unique_ptr<InputHandler> input_handler;
     std::shared_ptr<Dispatcher> dispatcher;
+    std::unique_ptr<RayBank> ray_bank;
 
   public:
     Application(Core::Gui::InteractionLock& lock);
@@ -37,7 +38,7 @@ class Application {
 
     Cad::Controller CreateController(Core::Controller& controller)
     {
-        return Cad::Controller(controller, *registry, *viewfinder);
+        return Cad::Controller(controller, *registry, *viewfinder, *ray_bank);
     }
 
     std::shared_ptr<Dispatcher>& GetDispatcher() { return dispatcher; }

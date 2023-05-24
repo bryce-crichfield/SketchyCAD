@@ -10,9 +10,10 @@ struct Controller : public Core::Controller {
     Core::Controller& controller;
     ObjectRegistry& registry;
     Viewfinder& viewfinder;
+    RayBank& ray_bank;
 
-    Controller(Core::Controller& controller, ObjectRegistry& registry, Viewfinder& viewfinder) : 
-        controller(controller), registry(registry), viewfinder(viewfinder) {}
+    Controller(Core::Controller& controller, ObjectRegistry& registry, Viewfinder& viewfinder, RayBank& ray_bank) : 
+        controller(controller), registry(registry), viewfinder(viewfinder), ray_bank(ray_bank) {}
 
     Core::Graphics& GetGraphics() override {
         return controller.GetGraphics();
@@ -40,6 +41,10 @@ struct Controller : public Core::Controller {
 
     virtual Cad::ObjectRegistry& GetRegistry() { 
         return registry;
+    }
+
+    virtual Cad::RayBank& GetRayBank() {
+        return ray_bank;
     }
 
     virtual Cad::Viewfinder& GetViewfinder() {

@@ -1,6 +1,16 @@
 #include <cad/Reticle.h>
 
 namespace Cad {
+std::unique_ptr<Reticle> Reticle::FromType(ReticleType type) {
+       switch (type) {
+    case ReticleType::Grid: return std::make_unique<GridpointReticle>();
+    case ReticleType::Midpoint: return std::make_unique<MidpointReticle>();
+    case ReticleType::Endpoint: return std::make_unique<EndpointReticle>();
+    case ReticleType::Intersection: return std::make_unique<IntersectionReticle>();
+    default: return std::make_unique<GridpointReticle>(); ;
+    }
+}
+
 void Reticle::Draw(Core::Controller& controller, Core::Vector2 screen_point)
 {
     auto& graphics = controller.GetGraphics();

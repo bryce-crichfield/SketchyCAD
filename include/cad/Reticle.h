@@ -3,17 +3,20 @@
 #include <core/Controller.h>
 
 namespace Cad {
-struct Reticle {
-    virtual ~Reticle() = default;
-    virtual void Draw(Core::Controller& controller, Core::Vector2 screen_point);
-};
 
-enum class ReticleType {
+    enum class ReticleType {
     Grid,
     Midpoint,
     Endpoint,
     Intersection,
     None
+};
+
+struct Reticle {
+    virtual ~Reticle() = default;
+    virtual void Draw(Core::Controller& controller, Core::Vector2 screen_point);
+
+    static std::unique_ptr<Reticle> FromType(ReticleType type);
 };
 
 struct GridpointReticle : public Reticle {

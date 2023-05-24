@@ -53,7 +53,6 @@ struct CreateCircleHandler : public InputHandler {
     }
 };
 
-
 struct DeselectAllVisitor : ObjectVisitor {
     DeselectAllVisitor() = default;
 
@@ -87,15 +86,16 @@ struct SelectionVisitor : public ObjectVisitor {
         }
     }
 
-    void Visit(CircleObject& object) override {
+    void Visit(CircleObject& object) override
+    {
         // Check to see if the circle is within the selection box
         auto& center = object.center;
         float radius = object.radius;
-        if (center.x - radius > topleft.x && center.x + radius < topleft.x + width && center.y - radius > topleft.y && center.y + radius < topleft.y + height) {
+        if (center.x - radius > topleft.x && center.x + radius < topleft.x + width && center.y - radius > topleft.y &&
+            center.y + radius < topleft.y + height) {
             std::cout << "Selecting circle" << std::endl;
             object.Select();
         }
-
     }
 
     void Visit(PolylineObject& object) override {}
@@ -114,15 +114,13 @@ struct SelectionModeHandler : public InputHandler {
             auto& registry = controller.GetRegistry();
             DeselectAllVisitor visitor;
             registry.VisitObjects(visitor);
-            
         }
 
         if (points.size() == 0) {
             if (input.IsPressed(Core::Mouse::LEFT)) {
                 points.push(cursor);
             }
-        }
-        else if (points.size() == 1) {
+        } else if (points.size() == 1) {
             // Draw the selection box
             auto& graphics = controller.GetGraphics();
             auto& point = points.top();
@@ -149,7 +147,7 @@ struct SelectionModeHandler : public InputHandler {
             {
                 // Draw the selection box
                 Core::Vector2 topright = topleft + Core::Vector2(width, 0);
-                Core::Vector2 bottomleft = topleft + Core::Vector2(0, height);                
+                Core::Vector2 bottomleft = topleft + Core::Vector2(0, height);
                 graphics.DrawDotted(Core::Color::ORANGE, topleft.x, topleft.y, topright.x, topright.y, 5);
                 graphics.DrawDotted(Core::Color::ORANGE, topleft.x, topleft.y, bottomleft.x, bottomleft.y, 5);
                 graphics.DrawDotted(Core::Color::ORANGE, bottomright.x, bottomright.y, topright.x, topright.y, 5);
@@ -219,6 +217,7 @@ struct LineCreateHandler : public InputHandler {
         }
         return std::max(start_angle, end_angle);
     }
+    
     void OnInput(Cad::Controller& controller)
     {
         auto& input = controller.GetInput();
@@ -238,6 +237,8 @@ struct LineCreateHandler : public InputHandler {
             auto& graphics = controller.GetGraphics();
             auto& point = points.top();
             auto length = (cursor_world - point).Length();
+
+            controller.GetRayBank().AddRay(point, Core::Vector2(1, 0));
             graphics.PushTransform(transform);
             graphics.DrawDotted(Core::Color::WHITE, point.x, point.y, cursor_world.x, cursor_world.y, 3);
             // Draw Horizontal Basis Line
@@ -245,8 +246,6 @@ struct LineCreateHandler : public InputHandler {
             // the arc will go from the horizontal basis line to the cursor
             Core::Vector2 horizontal_basis = Core::Vector2(point.x + cursor_world.Length(), point.y);
             float arc_angle = DrawArc(graphics, point, horizontal_basis, cursor_world);
-            graphics.DrawDotted(
-                Core::Color::GREEN.Darker(), point.x, point.y, horizontal_basis.x, horizontal_basis.y, 5);
 
             graphics.PopTransform();
 
@@ -318,7 +317,7 @@ struct TranslatedRenderVisitor : public ObjectVisitor {
         graphics.DrawLine(color, start.x, start.y, end.x, end.y);
     }
 
-    void Visit(CircleObject& object) override { }
+    void Visit(CircleObject& object) override {}
 
     void Visit(PolylineObject& object) override {}
 };
@@ -360,7 +359,8 @@ struct TranslateModeHandler : public InputHandler {
             controller.GetGraphics().PushTransform(transform);
             TranslatedRenderVisitor visitor(delta, controller.GetGraphics());
             controller.GetRegistry().VisitObjects(selected, visitor);
-            controller.GetGraphics().DrawDotted(Core::Color::RED, points.top().x, points.top().y, cursor_world.x, cursor_world.y, 5);
+            controller.GetGraphics().DrawDotted(
+                Core::Color::RED, points.top().x, points.top().y, cursor_world.x, cursor_world.y, 5);
             controller.GetGraphics().PopTransform();
 
             if (input.IsPressed(Core::Mouse::LEFT)) {
@@ -369,11 +369,8 @@ struct TranslateModeHandler : public InputHandler {
                 controller.GetRegistry().VisitObjects(selected, visitor);
             }
         }
-        
-
     }
 };
-
 
 Application::Application(Core::Gui::InteractionLock& lock) : focus(lock)
 {
@@ -381,6 +378,7 @@ Application::Application(Core::Gui::InteractionLock& lock) : focus(lock)
     viewfinder = std::make_unique<Viewfinder>();
     input_handler = std::make_unique<SelectionModeHandler>();
     dispatcher = std::make_shared<Dispatcher>();
+    ray_bank = std::make_unique<RayBank>();
 }
 
 void Application::OnStart(Controller& controller)
@@ -394,7 +392,6 @@ void Application::OnStart(Controller& controller)
     LineObjectBuilder line(Core::Vector2(2, 2), Core::Vector2(4, 1));
     registry->CreateObject(line);
 }
-
 
 struct CopyVisitor : ObjectVisitor {
     Cad::ObjectRegistry& registry;
@@ -432,15 +429,15 @@ struct CopyInputHandler : public InputHandler {
 
         if (input.IsPressed(Core::Mouse::LEFT) && points.empty()) {
             points.push(cursor_world);
-        }
-        else if (points.size() == 1) {
+        } else if (points.size() == 1) {
             auto delta = cursor_world - points.top();
             auto predicate = AreSelectedPredicate();
             auto selected = controller.GetRegistry().QueryObjects(predicate);
             controller.GetGraphics().PushTransform(transform);
             TranslatedRenderVisitor visitor(delta, controller.GetGraphics());
             controller.GetRegistry().VisitObjects(selected, visitor);
-            controller.GetGraphics().DrawDotted(Core::Color::RED, points.top().x, points.top().y, cursor_world.x, cursor_world.y, 5);
+            controller.GetGraphics().DrawDotted(
+                Core::Color::RED, points.top().x, points.top().y, cursor_world.x, cursor_world.y, 5);
             controller.GetGraphics().PopTransform();
 
             if (input.IsPressed(Core::Mouse::LEFT)) {
@@ -449,7 +446,6 @@ struct CopyInputHandler : public InputHandler {
                 controller.GetRegistry().VisitObjects(selected, visitor);
             }
         }
-
     }
 };
 
@@ -464,7 +460,6 @@ void Application::OnInput(Controller& controller)
     if (input.IsHeld(Core::Key::LControl) && input.IsPressed(Core::Key::A)) {
         DeselectAllVisitor visitor;
         controller.GetRegistry().VisitObjects(visitor);
-        
     }
 
     if (input.IsPressed(Core::Key::L)) {
@@ -498,8 +493,10 @@ void Application::OnUpdate(Controller& controller) {}
 
 void Application::OnRender(Controller& controller)
 {
-    controller.GetViewfinder().Update(controller, *registry);
+    controller.GetViewfinder().Update(controller, *registry, *ray_bank);
     Core::Transform view_transform = controller.GetViewfinder().GetViewTransform();
+    controller.GetRayBank().Draw(controller.GetGraphics(), view_transform);
+    controller.GetRayBank().Clear();
     controller.GetGraphics().PushTransform(view_transform);
     RendererVisitor renderer(controller.GetGraphics());
     controller.GetRegistry().VisitObjects(renderer);

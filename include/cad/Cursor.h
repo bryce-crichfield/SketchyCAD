@@ -20,17 +20,16 @@ class Cursor {
     std::unique_ptr<Reticle> reticle;
     bool is_grid_snapped = false;
 
-    std::unique_ptr<Reticle> create_reticle_from_type(ReticleType type);
     void update_mouse_location(Core::Controller& controller);
     void snap_cursor_to_grid(Core::Controller& controller, Core::Transform view_transform, float grid_size);
     void collect_snap_vectors(std::vector<SnapVector>& snap_vectors, ObjectRegistry& registry,
-        Core::Transform view_transform, float grid_size, Ray raycast);
+        Core::Transform view_transform, float grid_size);
     SnapVector get_closest_snap_vector(std::vector<SnapVector>& snap_vectors, Core::Vector2 mouse_position);
 
   public:
     Cursor() = default;
     void Update(Core::Controller& controller, ObjectRegistry& registry, Core::Transform view_transform, float grid_size,
-        Ray raycast);
+        RayBank& ray_bank);
 
     Core::Vector2 GetWorldPosition() const { return Core::Vector2(x, y); }
     Core::Vector2 GetScreenPosition() const { return Core::Vector2(x, y); }

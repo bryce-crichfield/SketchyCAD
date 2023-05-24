@@ -1,5 +1,5 @@
-#include <core/Core.h>
 #include <cad/Cad.h>
+#include <core/Core.h>
 // #include <cad/Cad.h>
 // #include <app/Commands.h>
 
@@ -11,7 +11,8 @@ struct HelpCommand : public Cad::Command {
 
     HelpCommand(std::shared_ptr<Cad::Dispatcher> dispatcher) : dispatcher(dispatcher) {}
 
-    void Forward(Cad::Controller& cad) override {
+    void Forward(Cad::Controller& cad) override
+    {
         // Get all registered commands
         auto commands = dispatcher->GetCommands();
         auto& output = cad.GetOutput();
@@ -20,16 +21,15 @@ struct HelpCommand : public Cad::Command {
         }
     }
 
-    void Backward(Cad::Controller &cad) override {
-        std::cout << "undo" << std::endl;
-    }
+    void Backward(Cad::Controller& cad) override { std::cout << "undo" << std::endl; }
 
     struct Signature : Cad::Syntax::ArgSignature {
         std::shared_ptr<Cad::Dispatcher> dispatcher;
 
         Signature(std::shared_ptr<Cad::Dispatcher> dispatcher) : dispatcher(dispatcher), ArgSignature("help", {}) {}
 
-        std::unique_ptr<Cad::Command> Create(std::vector<Cad::Syntax::Arg> args) override {
+        std::unique_ptr<Cad::Command> Create(std::vector<Cad::Syntax::Arg> args) override
+        {
             return std::make_unique<HelpCommand>(dispatcher);
         }
     };
@@ -42,7 +42,8 @@ struct CadProgram : public Core::Program {
 
     CadProgram() : cad(lock), Program(1300, 1300, VIEW_SIZE_WIDTH, VIEW_SIZE_HEIGHT) {}
 
-    void OnStart(Core::Controller& controller) override {
+    void OnStart(Core::Controller& controller) override
+    {
         controller.GetFontManager().LoadFont("default", "../assets/font/dogica.bin", 8);
         Cad::Controller cad_controller = cad.CreateController(controller);
         cad.OnStart(cad_controller);

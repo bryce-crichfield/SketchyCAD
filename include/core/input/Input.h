@@ -33,6 +33,9 @@ class Input {
 
     float GetMouseDeltaX() const;
     float GetMouseDeltaY() const;
+    Core::Vector2 GetMouseDelta() const {
+        return Core::Vector2(GetMouseDeltaX(), GetMouseDeltaY());
+    }
 
     float GetScrollDeltaX() const;
     float GetScrollDeltaY() const;

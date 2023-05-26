@@ -28,7 +28,9 @@ struct Vector2 {
         y += other.y;
         return *this;
     }
-
+    bool operator==(const Vector2& other) const {
+        return x == other.x && y == other.y;
+    }
     Vector2 Rotate(float angle) const
     {
         return Vector2(x * cos(angle) - y * sin(angle), x * sin(angle) + y * cos(angle));
@@ -51,7 +53,23 @@ struct Vector2 {
     static Vector2 FromAngle(float angle) { return Vector2(cos(angle), sin(angle)); }
 
     Vector2 Normalized() const { return *this / Length(); }
-    float Angle() const { return (atan2(y, x)); }
+    float Angle() const { 
+        float dot = Dot(Vector2(1, 0));
+        float angle = acos(dot / Length());
+        if (y < 0) {
+            angle = -angle;
+        }
+        return angle;
+    }
+
+    float Angle(Vector2 other) const { 
+        float dot = Dot(other);
+        float mag1 = Length();
+        float mag2 = other.Length();
+        float cosTheta = dot / (mag1 * mag2);
+        float thetaRad = acos(cosTheta);
+        return thetaRad;
+    }
     Vector2 Rotate(float angle, Vector2 origin) const { return (*this - origin).Rotate(angle) + origin; }
     std::string ToString() const {
         return "(" + std::to_string(x) + ", " + std::to_string(y) + ")";

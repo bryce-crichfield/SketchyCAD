@@ -7,7 +7,7 @@ namespace Cad {
 class Viewfinder {
     std::unique_ptr<Cursor> cursor;
 
-    float grid_size = 0.5f;
+    float grid_size = 1.0f;
     float scale = 1.0f;
     float pan_x = 0.0f;
     float pan_y = 0.0f;
@@ -17,7 +17,7 @@ class Viewfinder {
     Viewfinder();
 
     void Pan(int dx, int dy);
-    void Zoom(int delta);
+    void Zoom(int delta, Core::Vector2 world_center = Core::Vector2(0, 0));
     void Zero(Core::Controller& controller);
     void Snap(float size) { grid_size = size; }
 

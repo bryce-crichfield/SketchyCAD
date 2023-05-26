@@ -3,15 +3,25 @@
 
 namespace Core {
 
-ImageGraphics::ImageGraphics(Image& image ) : Graphics(), m_image(image) {}
+ImageGraphics::ImageGraphics(Image& image) : Graphics(), m_image(image) {}
 
 void ImageGraphics::Clear(Pixel color) { m_image.Clear(color); }
 
-void ImageGraphics::SetPixel(Pixel color, unsigned x, unsigned y) { m_image.SetPixel(x, y, color); }
+void ImageGraphics::SetPixel(Pixel color, unsigned x, unsigned y) {
+    if (!HasClip()) {
+        m_image.SetPixel(x, y, color);
+        return;
+    }
+    auto top_clip = m_clip_stack.top();
+    if (x < top_clip.first.x) return;
+    if (y < top_clip.first.y) return;
+    if (x > top_clip.first.x + top_clip.second.x) return;
+    if (y > top_clip.first.y + top_clip.second.y) return;
+    m_image.SetPixel(x, y, color);
+}
 
-void ImageGraphics::DrawLine(Pixel color, float x0_in, float y0_in, float x1_in, float y1_in)
-{
-    Transform transform = GetTransform();
+void ImageGraphics::DrawLine(Pixel color, float x0_in, float y0_in, float x1_in, float y1_in) {
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
     Vector2 p0 = transform.Apply(Vector2(x0_in, y0_in));
     Vector2 p1 = transform.Apply(Vector2(x1_in, y1_in));
 
@@ -51,7 +61,7 @@ void ImageGraphics::DrawLine(Pixel color, float x0_in, float y0_in, float x1_in,
 
 void ImageGraphics::DrawDotted(Pixel color, float x0_in, float y0_in, float x1_in, float y1_in, float width) {
     // Draw a line using the fast delta method
-    Transform transform = GetTransform();
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
     Vector2 p0 = transform.Apply(Vector2(x0_in, y0_in));
     Vector2 p1 = transform.Apply(Vector2(x1_in, y1_in));
 
@@ -69,7 +79,7 @@ void ImageGraphics::DrawDotted(Pixel color, float x0_in, float y0_in, float x1_i
     int dot_index = 0;
     bool dot = true;
     while (true) {
-        if (dot) { 
+        if (dot) {
             SetPixel(color, x0, y0);
         }
         dot_index++;
@@ -77,7 +87,6 @@ void ImageGraphics::DrawDotted(Pixel color, float x0_in, float y0_in, float x1_i
             dot_index = 0;
             dot = !dot;
         }
-
 
         if (x0 == x1 && y0 == y1) {
             break;
@@ -95,17 +104,10 @@ void ImageGraphics::DrawDotted(Pixel color, float x0_in, float y0_in, float x1_i
             y0 += sy;
         }
     }
-    
 }
 
-
-
-
-
-
-void ImageGraphics::DrawRect(Pixel color, unsigned x_in, unsigned y_in, unsigned width_in, unsigned height_in)
-{
-    Transform transform = GetTransform();
+void ImageGraphics::DrawRect(Pixel color, unsigned x_in, unsigned y_in, unsigned width_in, unsigned height_in) {
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
     Vector2 position = transform.Apply(Vector2(x_in, y_in));
     float x = position.x;
     float y = position.y;
@@ -123,9 +125,8 @@ void ImageGraphics::DrawRect(Pixel color, unsigned x_in, unsigned y_in, unsigned
     }
 }
 
-void ImageGraphics::DrawCircle(Pixel color, float x_in, float y_in, float radius_in)
-{
-    Transform transform = GetTransform();
+void ImageGraphics::DrawCircle(Pixel color, float x_in, float y_in, float radius_in) {
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
     Vector2 position = transform.Apply(Vector2(x_in, y_in));
     float x = position.x;
     float y = position.y;
@@ -156,9 +157,45 @@ void ImageGraphics::DrawCircle(Pixel color, float x_in, float y_in, float radius
     }
 }
 
-void ImageGraphics::FillRect(Pixel color, unsigned x_in, unsigned y_in, unsigned w_in, unsigned h_in)
-{
-    Transform transform = GetTransform();
+void ImageGraphics::DrawArc(Pixel color, float x, float y, float radius, float start_angle, float end_angle) {
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
+    auto origin = Vector2(x, y);
+    auto screen_origin = transform.Apply(Vector2(x, y));
+    auto screen_radius = radius * transform.GetScale();
+
+    // sort angles
+    if (start_angle > end_angle) {
+        float tmp = start_angle;
+        start_angle = end_angle;
+        end_angle = tmp;
+    }
+
+
+    float angle = start_angle;
+    float step = 0.01f;
+    while (angle < end_angle) {
+        float next_angle = angle + step;
+        if (next_angle > end_angle) {
+            next_angle = end_angle;
+        }
+
+        auto world_start = origin + (Vector2::FromAngle(angle) * radius);
+        auto world_end = origin + (Vector2::FromAngle(next_angle) * radius);
+        
+        auto screen_start = transform.Apply(world_start);
+        auto screen_end = transform.Apply(world_end);
+
+        bool is_transformed = IsTransformed();
+        SetTransformed(false);
+        DrawLine(color, screen_start.x, screen_start.y, screen_end.x, screen_end.y);
+        SetTransformed(is_transformed);
+
+        angle = next_angle;
+    }
+}
+
+void ImageGraphics::FillRect(Pixel color, unsigned x_in, unsigned y_in, unsigned w_in, unsigned h_in) {
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
     Vector2 position = transform.Apply(Vector2(x_in, y_in));
     float x = position.x;
     float y = position.y;
@@ -172,9 +209,8 @@ void ImageGraphics::FillRect(Pixel color, unsigned x_in, unsigned y_in, unsigned
     }
 }
 
-void ImageGraphics::FillCircle(Pixel color, unsigned x_in, unsigned y_in, unsigned radius_in)
-{
-    Transform transform = GetTransform();
+void ImageGraphics::FillCircle(Pixel color, unsigned x_in, unsigned y_in, unsigned radius_in) {
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
     Vector2 position = transform.Apply(Vector2(x_in, y_in));
     float x = position.x;
     float y = position.y;
@@ -204,4 +240,4 @@ void ImageGraphics::FillCircle(Pixel color, unsigned x_in, unsigned y_in, unsign
 unsigned ImageGraphics::GetWidth() const { return m_image.GetWidth(); }
 
 unsigned ImageGraphics::GetHeight() const { return m_image.GetHeight(); }
-}
+} // namespace Core

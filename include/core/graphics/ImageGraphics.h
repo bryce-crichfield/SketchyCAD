@@ -15,7 +15,6 @@ class ImageGraphics : public Graphics {
     ImageGraphics(Image& image);
     ~ImageGraphics() = default;
 
-
     unsigned GetWidth() const override;
     unsigned GetHeight() const override;
 
@@ -32,6 +31,8 @@ class ImageGraphics : public Graphics {
         DrawLine(color, x1, y1, x2, y2);
         DrawLine(color, x2, y2, x0, y0);
     }
+    void DrawArc(Pixel color, float x, float y, float radius, float start_angle, float end_angle) override;
+    
     void FillRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height) override;
     void FillCircle(Pixel color, unsigned x, unsigned y, unsigned radius) override;
 };

@@ -14,7 +14,11 @@ void Viewfinder::Pan(int dx, int dy)
     pan_y += dy * scale;
 }
 
-void Viewfinder::Zoom(int delta) { scale += delta * 2.0f; }
+void Viewfinder::Zoom(int delta, Core::Vector2 world_center) { 
+    scale += delta * 2.0f; 
+    pan_x -= world_center.x * delta * 2.0f;
+    pan_y -= world_center.y * delta * 2.0f;
+}
 
 void Viewfinder::Zero(Core::Controller& controller)
 {
@@ -26,19 +30,6 @@ void Viewfinder::Zero(Core::Controller& controller)
 
 Core::Vector2 Viewfinder::GetCursor(Core::Controller& controller)
 {
-    // Core::Input& input = controller.GetInput();
-    // Core::Vector2 cursor = input.GetMousePosition();
-    // Core::Transform view_transform = GetViewTransform();
-    // Core::Vector2 cursor_world = view_transform.Inverse().Apply(cursor);
-
-    // // Snap cursor to grid
-    // float grid_x = std::round(cursor_world.x / grid_size) * grid_size;
-    // float grid_y = std::round(cursor_world.y / grid_size) * grid_size;
-    // cursor_world = Core::Vector2(grid_x, grid_y);
-    // cursor = view_transform.Apply(cursor_world);
-
-    // return cursor;
-
     auto vector = cursor->GetScreenPosition();
     return vector;
 }
@@ -72,31 +63,20 @@ void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry, 
         }
     }
 
-    // Draw the origin lines
-    ray_bank.AddRay(Core::Vector2(0, 0), Core::Vector2(1, 0), Core::Color::GREEN);
-    ray_bank.AddRay(Core::Vector2(0, 0), Core::Vector2(0, 1), Core::Color::RED);
-
-
     // If the mouse is scrolling then zoom in or out
     // also adjust the zoom based on the mouse position
     // so it appears to zoom in on the mouse position
     if (input.GetScrollDeltaY() != 0) {
-        Core::Vector2 cursor_before_zoom = input.GetMousePosition();
-        Zoom(input.GetScrollDeltaY());
-        Core::Vector2 cursor_after_zoom = GetCursor(controller);
-        Core::Vector2 cursor_delta = cursor_after_zoom - cursor_before_zoom;
-        pan_x -= (cursor_delta.x);
-        pan_y -= (cursor_delta.y) ;
+        auto cursor_screen = GetCursor(controller);
+        auto cursor_world = inverse_transform.Apply(cursor_screen);
+        Zoom(input.GetScrollDeltaY(), cursor_world);
     }
 
     // Do mouse dragging
-    float dx = input.GetMouseDeltaX();
-    float dy = input.GetMouseDeltaY();
     if (input.IsHeld(Core::Mouse::MIDDLE)) {
-        float width = graphics.GetWidth();
-        float scaling = (width) * controller.GetChronometer().GetDelta().AsSeconds();
-        pan_x += (dx * scaling) / 10.0f;
-        pan_y += (dy * scaling) / 10.0f;
+        auto delta_mouse = controller.GetInput().GetMouseDelta();        
+        pan_x += delta_mouse.x;
+        pan_y += delta_mouse.y;
     }
 
     // Draw the cursor as a cross hair and reticle

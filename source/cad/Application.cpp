@@ -5,8 +5,7 @@ namespace Cad {
 
 struct CreateCircleHandler : public InputHandler {
     std::stack<Core::Vector2> points;
-    void OnInput(Cad::Controller& controller) override
-    {
+    void OnInput(Cad::Controller& controller) override {
         auto& input = controller.GetInput();
         auto cursor = controller.GetViewfinder().GetCursor(controller);
         auto transform = controller.GetViewfinder().GetViewTransform();
@@ -68,12 +67,10 @@ struct SelectionVisitor : public ObjectVisitor {
     float width;
     float height;
 
-    SelectionVisitor(Core::Vector2 topleft, float width, float height) : topleft(topleft), width(width), height(height)
-    {
-    }
+    SelectionVisitor(Core::Vector2 topleft, float width, float height)
+        : topleft(topleft), width(width), height(height) {}
 
-    void Visit(LineObject& object) override
-    {
+    void Visit(LineObject& object) override {
         auto& start = object.start;
         auto& end = object.end;
         if (start.x > topleft.x && start.x < topleft.x + width && start.y > topleft.y && start.y < topleft.y + height) {
@@ -86,8 +83,7 @@ struct SelectionVisitor : public ObjectVisitor {
         }
     }
 
-    void Visit(CircleObject& object) override
-    {
+    void Visit(CircleObject& object) override {
         // Check to see if the circle is within the selection box
         auto& center = object.center;
         float radius = object.radius;
@@ -103,8 +99,7 @@ struct SelectionVisitor : public ObjectVisitor {
 struct SelectionModeHandler : public InputHandler {
     std::stack<Core::Vector2> points;
 
-    void OnInput(Cad::Controller& controller) override
-    {
+    void OnInput(Cad::Controller& controller) override {
         auto& input = controller.GetInput();
         auto cursor = controller.GetViewfinder().GetCursor(controller);
         auto transform = controller.GetViewfinder().GetViewTransform();
@@ -170,56 +165,9 @@ struct SelectionModeHandler : public InputHandler {
 
 struct LineCreateHandler : public InputHandler {
     std::stack<Core::Vector2> points;
-    float DrawArc(Core::Graphics& graphics, Core::Vector2 origin, Core::Vector2 start, Core::Vector2 end)
-    {
-        Core::Transform transform = graphics.GetTransform();
-        origin = transform.Apply(origin);
-        start = transform.Apply(start);
-        end = transform.Apply(end);
+    std::vector<Ray> rays;
 
-        float start_radius = (start - origin).Length();
-        float end_radius = (end - origin).Length();
-        float radius = std::min(start_radius, end_radius);
-        float start_angle = (start - origin).Angle();
-        float end_angle = (end - origin).Angle();
-
-        // sort angles
-        if (start_angle > end_angle) {
-            float tmp = start_angle;
-            start_angle = end_angle;
-            end_angle = tmp;
-        }
-
-        bool popped = false;
-        if (!graphics.GetStackSize() == 0) {
-            graphics.PopTransform();
-            popped = true;
-        }
-
-        float angle = start_angle;
-        float step = 0.01f;
-        while (angle < end_angle) {
-            float next_angle = angle + step;
-            if (next_angle > end_angle) {
-                next_angle = end_angle;
-            }
-
-            Core::Vector2 p0 = origin + Core::Vector2::FromAngle(angle) * radius;
-            Core::Vector2 p1 = origin + Core::Vector2::FromAngle(next_angle) * radius;
-            std::cout << "p0: " << p0.ToString() << std::endl;
-            graphics.DrawLine(Core::Color::GRAY, p0.x, p0.y, p1.x, p1.y);
-
-            angle = next_angle;
-        }
-
-        if (popped) {
-            graphics.PushTransform(transform);
-        }
-        return std::max(start_angle, end_angle);
-    }
-    
-    void OnInput(Cad::Controller& controller)
-    {
+    void OnInput(Cad::Controller& controller) {
         auto& input = controller.GetInput();
         auto cursor = controller.GetViewfinder().GetCursor(controller);
         auto transform = controller.GetViewfinder().GetViewTransform();
@@ -229,8 +177,25 @@ struct LineCreateHandler : public InputHandler {
             points.push(cursor_world);
         }
 
-        if (input.IsPressed(Core::Key::Escape)) {
+        if (input.IsPressed(Core::Key::Escape) || input.IsPressed(Core::Key::Space)) {
             points = std::stack<Core::Vector2>();
+            rays = std::vector<Ray>();
+        }
+
+        if (input.IsPressed(Core::Key::Up)) {
+            rays.push_back(Ray(cursor_world, Core::Vector2(0, 1), Core::Color::RED.Darker()));
+        }
+
+        if (input.IsPressed(Core::Key::Left)) {
+            rays.push_back(Ray(cursor_world, Core::Vector2(1, 0), Core::Color::GREEN.Darker()));
+        }
+
+        if (input.IsPressed(Core::Mouse::RIGHT)) {
+            if (points.size() == 1) {
+                points.pop();
+            }
+            points.push(cursor_world);
+            return;
         }
 
         if (points.size() == 1) {
@@ -238,24 +203,30 @@ struct LineCreateHandler : public InputHandler {
             auto& point = points.top();
             auto length = (cursor_world - point).Length();
 
-            controller.GetRayBank().AddRay(point, Core::Vector2(1, 0));
+
+            // add any rays we may have
+            for (auto& ray : rays) {
+                controller.GetRayBank().AddRay(ray);
+            }
+            controller.GetRayBank().AddRay(point, Core::Vector2(0, 1), Core::Color::RED.Darker());
+            controller.GetRayBank().AddRay(point, Core::Vector2(1, 0), Core::Color::GREEN.Darker());
+
+
             graphics.PushTransform(transform);
             graphics.DrawDotted(Core::Color::WHITE, point.x, point.y, cursor_world.x, cursor_world.y, 3);
             // Draw Horizontal Basis Line
-
             // the arc will go from the horizontal basis line to the cursor
-            Core::Vector2 horizontal_basis = Core::Vector2(point.x + cursor_world.Length(), point.y);
-            float arc_angle = DrawArc(graphics, point, horizontal_basis, cursor_world);
-
+            float angle = (cursor_world - point).Angle();
+            graphics.DrawArc(Core::Color::WHITE, point.x, point.y, length, 0, angle);
             graphics.PopTransform();
+
 
             Core::Font& font = controller.GetFontManager().GetFont("default");
             Core::FontGraphics font_graphics(graphics, font);
-            // to string length with 2 decimal places
-            float angle_degree = arc_angle * 180 / M_PI;
+            float angle_degree = angle * 180 / M_PI;
             std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << length;
-            ss << ", " << angle_degree << "°";
+            ss << std::fixed << std::setprecision(2) << "L: " << length;
+            ss << ", deg:" << angle_degree ;
             std::string text = ss.str();
             float draw_x = cursor.x + 10;
             float draw_y = cursor.y + 10;
@@ -269,6 +240,7 @@ struct LineCreateHandler : public InputHandler {
             points.pop();
             auto builder = Cad::LineObjectBuilder(start, end);
             controller.GetRegistry().CreateObject(builder);
+            rays = std::vector<Ray>();
         }
     }
 };
@@ -281,16 +253,14 @@ struct RendererVisitor : public ObjectVisitor {
     Core::Graphics& graphics;
     RendererVisitor(Core::Graphics& graphics) : graphics(graphics) {}
 
-    void Visit(LineObject& object) override
-    {
+    void Visit(LineObject& object) override {
         auto start = object.start;
         auto end = object.end;
         auto color = object.IsSelected() ? Core::Color::RED : Core::Color::WHITE;
         graphics.DrawLine(color, start.x, start.y, end.x, end.y);
     }
 
-    void Visit(CircleObject& object) override
-    {
+    void Visit(CircleObject& object) override {
         auto& center = object.center;
         auto radius = object.radius;
         auto color = object.IsSelected() ? Core::Color::RED : Core::Color::WHITE;
@@ -307,8 +277,7 @@ struct TranslatedRenderVisitor : public ObjectVisitor {
 
     TranslatedRenderVisitor(Core::Vector2 delta, Core::Graphics& graphics) : delta(delta), graphics(graphics) {}
 
-    void Visit(LineObject& object) override
-    {
+    void Visit(LineObject& object) override {
         std::cout << "rendering line" << std::endl;
         auto start = object.start + delta;
         auto end = object.end + delta;
@@ -327,8 +296,7 @@ struct TranslateObjectVisitor : public ObjectVisitor {
 
     TranslateObjectVisitor(Core::Vector2 delta) : delta(delta) {}
 
-    void Visit(LineObject& object) override
-    {
+    void Visit(LineObject& object) override {
         object.start += delta;
         object.end += delta;
     }
@@ -341,8 +309,7 @@ struct TranslateObjectVisitor : public ObjectVisitor {
 struct TranslateModeHandler : public InputHandler {
     std::stack<Core::Vector2> points;
     TranslateModeHandler() = default;
-    void OnInput(Cad::Controller& controller)
-    {
+    void OnInput(Cad::Controller& controller) {
         auto& input = controller.GetInput();
         auto cursor = controller.GetViewfinder().GetCursor(controller);
         auto transform = controller.GetViewfinder().GetViewTransform();
@@ -372,8 +339,7 @@ struct TranslateModeHandler : public InputHandler {
     }
 };
 
-Application::Application(Core::Gui::InteractionLock& lock) : focus(lock)
-{
+Application::Application(Core::Gui::InteractionLock& lock) : focus(lock) {
     registry = std::make_unique<ObjectRegistry>();
     viewfinder = std::make_unique<Viewfinder>();
     input_handler = std::make_unique<SelectionModeHandler>();
@@ -381,8 +347,7 @@ Application::Application(Core::Gui::InteractionLock& lock) : focus(lock)
     ray_bank = std::make_unique<RayBank>();
 }
 
-void Application::OnStart(Controller& controller)
-{
+void Application::OnStart(Controller& controller) {
     viewfinder->Zero(controller);
     viewfinder->Pan(0, 0);
 
@@ -399,16 +364,14 @@ struct CopyVisitor : ObjectVisitor {
 
     CopyVisitor(Cad::ObjectRegistry& registry, Core::Vector2 delta) : registry(registry), delta(delta) {}
 
-    void Visit(LineObject& object) override
-    {
+    void Visit(LineObject& object) override {
         auto start = object.start + delta;
         auto end = object.end + delta;
         auto builder = Cad::LineObjectBuilder(start, end);
         registry.CreateObject(builder);
     }
 
-    void Visit(CircleObject& object) override
-    {
+    void Visit(CircleObject& object) override {
         auto center = object.center + delta;
         auto builder = Cad::CircleObjectBuilder(center, object.radius);
         registry.CreateObject(builder);
@@ -420,8 +383,7 @@ struct CopyVisitor : ObjectVisitor {
 struct CopyInputHandler : public InputHandler {
     std::stack<Core::Vector2> points;
     CopyInputHandler() = default;
-    void OnInput(Cad::Controller& controller)
-    {
+    void OnInput(Cad::Controller& controller) {
         auto& input = controller.GetInput();
         auto cursor = controller.GetViewfinder().GetCursor(controller);
         auto transform = controller.GetViewfinder().GetViewTransform();
@@ -449,8 +411,9 @@ struct CopyInputHandler : public InputHandler {
     }
 };
 
-void Application::OnInput(Controller& controller)
-{
+void Application::OnInput(Controller& controller) {
+
+
     if (input_handler != nullptr) {
         input_handler->OnInput(controller);
     }
@@ -491,8 +454,11 @@ void Application::OnInput(Controller& controller)
 
 void Application::OnUpdate(Controller& controller) {}
 
-void Application::OnRender(Controller& controller)
-{
+void Application::OnRender(Controller& controller) {
+
+        // Draw the origin lines
+    controller.GetRayBank().AddRay(Core::Vector2(0, 0), Core::Vector2(0, 1), Core::Color::RED);
+    controller.GetRayBank().AddRay(Core::Vector2(0, 0), Core::Vector2(1, 0), Core::Color::GREEN);
     controller.GetViewfinder().Update(controller, *registry, *ray_bank);
     Core::Transform view_transform = controller.GetViewfinder().GetViewTransform();
     controller.GetRayBank().Draw(controller.GetGraphics(), view_transform);
@@ -501,10 +467,24 @@ void Application::OnRender(Controller& controller)
     RendererVisitor renderer(controller.GetGraphics());
     controller.GetRegistry().VisitObjects(renderer);
     controller.GetGraphics().PopTransform();
+
+    // Draw black background in minimap area
+    controller.GetGraphics().FillRect(Core::Pixel(0, 0, 0), 550, 550, 150, 150);
+
+    Core::Transform minimap_transform;
+    minimap_transform.scale = view_transform.scale * 0.05;
+    minimap_transform.x = view_transform.x * 0.05 + 600;
+    minimap_transform.y = view_transform.y * 0.05 + 600;
+
+    controller.GetGraphics().PushTransform(minimap_transform);
+    controller.GetGraphics().PushClip(550, 550, 150, 150);
+    RendererVisitor minimap_renderer(controller.GetGraphics());
+    controller.GetRegistry().VisitObjects(minimap_renderer);
+    controller.GetGraphics().PopTransform();
+    controller.GetGraphics().PopClip();
 }
 
-void Application::Update(Controller& controller)
-{
+void Application::Update(Controller& controller) {
     dispatcher->Execute(controller);
 
     if (focus.TryLock()) {

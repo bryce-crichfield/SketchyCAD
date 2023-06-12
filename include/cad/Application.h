@@ -48,6 +48,7 @@ struct FrametimeCounter {
 
 struct Editor : public Component {
     std::unique_ptr<InputHandler> input_handler;
+    bool idle = false;
 
     Editor();
 
@@ -60,6 +61,11 @@ struct Editor : public Component {
 
     void OnUpdate(Cad::Controller& controller);
     void OnRender(Cad::Controller& controller);
+
+    template <typename T> void SetInputHandler() {
+        input_handler = std::make_unique<T>();
+        idle = true;
+    }
 };
 
 struct EditorHandler : public EventHandler {

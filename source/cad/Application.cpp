@@ -257,7 +257,6 @@ struct TranslatedRenderVisitor : public ObjectVisitor {
     TranslatedRenderVisitor(Core::Vector2 delta, Core::Graphics& graphics) : delta(delta), graphics(graphics) {}
 
     void Visit(LineObject& object) override {
-        std::cout << "rendering line" << std::endl;
         auto start = object.start + delta;
         auto end = object.end + delta;
 
@@ -265,7 +264,12 @@ struct TranslatedRenderVisitor : public ObjectVisitor {
         graphics.DrawLine(color, start.x, start.y, end.x, end.y);
     }
 
-    void Visit(CircleObject& object) override {}
+    void Visit(CircleObject& object) override {
+        auto center = object.center + delta;
+        auto radius = object.radius;
+        auto color = Core::Color::BROWN;
+        graphics.DrawCircle(color, center.x, center.y, radius);
+    }
 
     void Visit(PolylineObject& object) override {}
 };
@@ -323,8 +327,9 @@ struct LineModeButtonHandler : EventHandler {
 
     LineModeButtonHandler(Editor& editor) : editor(editor) {}
 
-    void Handle(MouseClickEvent& event) override {
-        editor.input_handler = std::make_unique<LineCreateHandler>();
+    void Handle(MouseClickEvent& event) override { 
+        editor.SetInputHandler<LineCreateHandler>();
+        
     }
 };
 
@@ -334,7 +339,7 @@ struct CircleModeButtonHandler : EventHandler {
     CircleModeButtonHandler(Editor& editor) : editor(editor) {}
 
     void Handle(MouseClickEvent& event) override {
-        editor.input_handler = std::make_unique<CreateCircleHandler>();
+        editor.SetInputHandler<CreateCircleHandler>();
     }
 };
 
@@ -354,17 +359,17 @@ Application::Application() {
     minimap->size = Core::Vector2(200, 200);
     root.Insert(std::move(minimap));
 
-    // auto line_button = std::make_unique<Button>();
-    // line_button->text = "Line";
-    // line_button->size = Core::Vector2(50, 20);
-    // line_button->handlers.push_back(std::make_unique<LineModeButtonHandler>(editor));
-    // root.Insert(std::move(line_button));
+    auto line_button = std::make_unique<Button>();
+    line_button->text = "Line";
+    line_button->size = Core::Vector2(50, 20);
+    line_button->handlers.push_back(std::make_unique<LineModeButtonHandler>(editor));
+    root.Insert(std::move(line_button));
 
-    // auto circle_button = std::make_unique<Button>();
-    // circle_button->text = "Circle";
-    // circle_button->size = Core::Vector2(50, 20);
-    // circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
-    // root.Insert(std::move(circle_button));
+    auto circle_button = std::make_unique<Button>();
+    circle_button->text = "Circle";
+    circle_button->size = Core::Vector2(50, 20);
+    circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
+    root.Insert(std::move(circle_button));
 
 }
 
@@ -445,7 +450,12 @@ void Editor::OnUpdate(Cad::Controller& controller) {
     if (NotFocused()) return;
 
     if (input_handler != nullptr) {
-        input_handler->OnInput(controller);
+        if (idle) {
+            idle = false;
+        }
+        else {
+            input_handler->OnInput(controller);
+        }
     }
 
     auto& input = controller.GetInput();

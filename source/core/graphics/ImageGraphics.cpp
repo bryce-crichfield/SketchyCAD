@@ -194,6 +194,25 @@ void ImageGraphics::DrawArc(Pixel color, float x, float y, float radius, float s
     }
 }
 
+void ImageGraphics::DrawImage(Image& image, float x, float y, float width, float height) {
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
+    auto screen_position = transform.Apply(Vector2(x, y));
+    auto screen_width = width * transform.GetScale();
+    auto screen_height = height * transform.GetScale();
+
+    for (unsigned i = 0; i < screen_width; i++) {
+        for (unsigned j = 0; j < screen_height; j++) {
+            float u = (float)i / screen_width;
+            float v = (float)j / screen_height;
+            auto pixel = image.SamplePixel(u, v);
+            if (pixel.a > 0) {
+                SetPixel(pixel, screen_position.x + i, screen_position.y + j);
+            }
+        }
+    }
+}
+
+
 void ImageGraphics::FillRect(Pixel color, unsigned x_in, unsigned y_in, unsigned w_in, unsigned h_in) {
     auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
     Vector2 position = transform.Apply(Vector2(x_in, y_in));
@@ -235,6 +254,51 @@ void ImageGraphics::FillCircle(Pixel color, unsigned x_in, unsigned y_in, unsign
             err += 1 - 2 * x0;
         }
     }
+}
+
+void ImageGraphics::FillTriangle(Pixel color, float x0_in, float y0_in, float x1_in, float y1_in, float x2_in, float y2_in) 
+{
+    auto transform = IsTransformed() && !m_transform_stack.empty() ? m_transform_stack.top() : Transform::Identity();
+    Vector2 p0 = transform.Apply(Vector2(x0_in, y0_in));
+    Vector2 p1 = transform.Apply(Vector2(x1_in, y1_in));
+    Vector2 p2 = transform.Apply(Vector2(x2_in, y2_in));
+
+    // Fill triangle by drawing horizontal lines
+    // Split triangle into top and bottom halves
+    Vector2 top = p0;
+    Vector2 middle = p1;
+    Vector2 bottom = p2;
+    if (top.y > middle.y) {
+        std::swap(top, middle);
+    }
+
+    if (middle.y > bottom.y) {
+        std::swap(middle, bottom);
+    }
+
+    if (top.y > middle.y) {
+        std::swap(top, middle);
+    }
+
+    // Calculate the slope of the left and right sides of the triangle
+    float left_slope = (middle.x - top.x) / (middle.y - top.y);
+    float right_slope = (bottom.x - top.x) / (bottom.y - top.y);
+
+    SetTransformed(false);
+    // Draw the top half of the triangle
+    for (int y = top.y; y < middle.y; y++) {
+        int x0 = top.x + (y - top.y) * left_slope;
+        int x1 = top.x + (y - top.y) * right_slope;
+        DrawLine(color, x0, y, x1, y);
+    }
+
+    // Draw the bottom half of the triangle
+    for (int y = middle.y; y < bottom.y; y++) {
+        int x0 = middle.x + (y - middle.y) * left_slope;
+        int x1 = top.x + (y - top.y) * right_slope;
+        DrawLine(color, x0, y, x1, y);
+    }
+    SetTransformed(true);
 }
 
 unsigned ImageGraphics::GetWidth() const { return m_image.GetWidth(); }

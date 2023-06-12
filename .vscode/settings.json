@@ -64,7 +64,8 @@
     "cstring": "cpp",
     "bitset": "cpp",
     "map": "cpp",
-    "regex": "cpp"
+    "regex": "cpp",
+    "unordered_set": "cpp"
   },
   "files.exclude": {
     "**/.git": true,

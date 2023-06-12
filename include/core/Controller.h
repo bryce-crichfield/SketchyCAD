@@ -5,7 +5,6 @@
 #include <core/chrono/Chronometer.h>
 #include <core/graphics/Graphics.h>
 #include <core/font/FontManager.h>
-#include <core/gui/StyleManager.h>
 
 namespace Core {
 
@@ -15,7 +14,6 @@ struct Controller {
     virtual Chronometer& GetChronometer() = 0;
     virtual Graphics& GetGraphics() = 0;
     virtual FontManager& GetFontManager() = 0;
-    virtual Gui::StyleManager& GetStyleManager() = 0;
 };
 
 } // namespace Core

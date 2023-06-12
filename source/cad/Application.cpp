@@ -1,6 +1,7 @@
 #include <cad/Application.h>
+#include <cad/gui/Gui.h>
 #include <cad/object/ObjectVisitor.h>
-
+#include <core/graphics/ImageGraphics.h>
 namespace Cad {
 
 struct CreateCircleHandler : public InputHandler {
@@ -168,6 +169,8 @@ struct LineCreateHandler : public InputHandler {
     std::vector<Ray> rays;
 
     void OnInput(Cad::Controller& controller) {
+        std::cout << "LineCreateHandler" << std::endl;
+
         auto& input = controller.GetInput();
         auto cursor = controller.GetViewfinder().GetCursor(controller);
         auto transform = controller.GetViewfinder().GetViewTransform();
@@ -203,14 +206,12 @@ struct LineCreateHandler : public InputHandler {
             auto& point = points.top();
             auto length = (cursor_world - point).Length();
 
-
             // add any rays we may have
             for (auto& ray : rays) {
                 controller.GetRayBank().AddRay(ray);
             }
             controller.GetRayBank().AddRay(point, Core::Vector2(0, 1), Core::Color::RED.Darker());
             controller.GetRayBank().AddRay(point, Core::Vector2(1, 0), Core::Color::GREEN.Darker());
-
 
             graphics.PushTransform(transform);
             graphics.DrawDotted(Core::Color::WHITE, point.x, point.y, cursor_world.x, cursor_world.y, 3);
@@ -220,13 +221,12 @@ struct LineCreateHandler : public InputHandler {
             graphics.DrawArc(Core::Color::WHITE, point.x, point.y, length, 0, angle);
             graphics.PopTransform();
 
-
             Core::Font& font = controller.GetFontManager().GetFont("default");
             Core::FontGraphics font_graphics(graphics, font);
             float angle_degree = angle * 180 / M_PI;
             std::stringstream ss;
             ss << std::fixed << std::setprecision(2) << "L: " << length;
-            ss << ", deg:" << angle_degree ;
+            ss << ", deg:" << angle_degree;
             std::string text = ss.str();
             float draw_x = cursor.x + 10;
             float draw_y = cursor.y + 10;
@@ -248,27 +248,6 @@ struct LineCreateHandler : public InputHandler {
 struct AreSelectedPredicate : public ObjectPredicate {
     AreSelectedPredicate() = default;
     virtual bool Match(Object& object) { return object.IsSelected(); }
-};
-struct RendererVisitor : public ObjectVisitor {
-    Core::Graphics& graphics;
-    RendererVisitor(Core::Graphics& graphics) : graphics(graphics) {}
-
-    void Visit(LineObject& object) override {
-        auto start = object.start;
-        auto end = object.end;
-        auto color = object.IsSelected() ? Core::Color::RED : Core::Color::WHITE;
-        graphics.DrawLine(color, start.x, start.y, end.x, end.y);
-    }
-
-    void Visit(CircleObject& object) override {
-        auto& center = object.center;
-        auto radius = object.radius;
-        auto color = object.IsSelected() ? Core::Color::RED : Core::Color::WHITE;
-
-        graphics.DrawCircle(color, center.x, center.y, radius);
-    }
-
-    void Visit(PolylineObject& object) override {}
 };
 
 struct TranslatedRenderVisitor : public ObjectVisitor {
@@ -339,15 +318,68 @@ struct TranslateModeHandler : public InputHandler {
     }
 };
 
-Application::Application(Core::Gui::InteractionLock& lock) : focus(lock) {
+struct LineModeButtonHandler : EventHandler {
+    Editor& editor;
+
+    LineModeButtonHandler(Editor& editor) : editor(editor) {}
+
+    void Handle(MouseClickEvent& event) override {
+        editor.input_handler = std::make_unique<LineCreateHandler>();
+    }
+};
+
+struct CircleModeButtonHandler : EventHandler {
+    Editor& editor;
+
+    CircleModeButtonHandler(Editor& editor) : editor(editor) {}
+
+    void Handle(MouseClickEvent& event) override {
+        editor.input_handler = std::make_unique<CreateCircleHandler>();
+    }
+};
+
+struct BetterButton : public Button {
+    BetterButton(std::string text) {
+        this->text = text;
+    }
+
+    void OnClick() override {
+        auto& focus_manager = FocusManager::GetInstance();
+        focus_manager.RequestFocus(*this);
+    }
+};
+
+Application::Application() {
     registry = std::make_unique<ObjectRegistry>();
     viewfinder = std::make_unique<Viewfinder>();
-    input_handler = std::make_unique<SelectionModeHandler>();
     dispatcher = std::make_shared<Dispatcher>();
     ray_bank = std::make_unique<RayBank>();
+
+    root.position = Core::Vector2(0, 0);
+    root.size = Core::Vector2(200, 275);
+
+
+    auto minimap = std::make_unique<Minimap>();
+    minimap->size = Core::Vector2(200, 200);
+    root.Insert(std::move(minimap));
+
+    auto line_button = std::make_unique<Button>();
+    line_button->text = "Line";
+    line_button->size = Core::Vector2(50, 20);
+    line_button->handlers.push_back(std::make_unique<LineModeButtonHandler>(editor));
+    root.Insert(std::move(line_button));
+
+    auto circle_button = std::make_unique<Button>();
+    circle_button->text = "Circle";
+    circle_button->size = Core::Vector2(50, 20);
+    circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
+    root.Insert(std::move(circle_button));
+
 }
 
 void Application::OnStart(Controller& controller) {
+    editor.OnStart(controller);
+
     viewfinder->Zero(controller);
     viewfinder->Pan(0, 0);
 
@@ -411,8 +443,15 @@ struct CopyInputHandler : public InputHandler {
     }
 };
 
-void Application::OnInput(Controller& controller) {
+Editor::Editor() {
+    handlers.push_back(std::make_unique<EditorHandler>(*this));
+    input_handler = std::make_unique<NoOpInputHandler>();
 
+    is_focusable = true;
+}
+
+void Editor::OnUpdate(Cad::Controller& controller) {
+    if (NotFocused()) return;
 
     if (input_handler != nullptr) {
         input_handler->OnInput(controller);
@@ -450,16 +489,18 @@ void Application::OnInput(Controller& controller) {
         auto selected = controller.GetRegistry().QueryObjects(predicate);
         controller.GetRegistry().DeleteObjects(selected);
     }
+
+    auto& registry = controller.GetRegistry();
+    auto& ray_bank = controller.GetRayBank();
+    controller.GetViewfinder().Update(controller, registry, ray_bank);
 }
 
-void Application::OnUpdate(Controller& controller) {}
-
-void Application::OnRender(Controller& controller) {
-
-        // Draw the origin lines
+void Editor::OnRender(Cad::Controller& controller) {
+    auto& registry = controller.GetRegistry();
+    auto& ray_bank = controller.GetRayBank();
     controller.GetRayBank().AddRay(Core::Vector2(0, 0), Core::Vector2(0, 1), Core::Color::RED);
     controller.GetRayBank().AddRay(Core::Vector2(0, 0), Core::Vector2(1, 0), Core::Color::GREEN);
-    controller.GetViewfinder().Update(controller, *registry, *ray_bank);
+    controller.GetViewfinder().Render(controller, registry, ray_bank);
     Core::Transform view_transform = controller.GetViewfinder().GetViewTransform();
     controller.GetRayBank().Draw(controller.GetGraphics(), view_transform);
     controller.GetRayBank().Clear();
@@ -467,31 +508,39 @@ void Application::OnRender(Controller& controller) {
     RendererVisitor renderer(controller.GetGraphics());
     controller.GetRegistry().VisitObjects(renderer);
     controller.GetGraphics().PopTransform();
-
-    // Draw black background in minimap area
-    controller.GetGraphics().FillRect(Core::Pixel(0, 0, 0), 550, 550, 150, 150);
-
-    Core::Transform minimap_transform;
-    minimap_transform.scale = view_transform.scale * 0.05;
-    minimap_transform.x = view_transform.x * 0.05 + 600;
-    minimap_transform.y = view_transform.y * 0.05 + 600;
-
-    controller.GetGraphics().PushTransform(minimap_transform);
-    controller.GetGraphics().PushClip(550, 550, 150, 150);
-    RendererVisitor minimap_renderer(controller.GetGraphics());
-    controller.GetRegistry().VisitObjects(minimap_renderer);
-    controller.GetGraphics().PopTransform();
-    controller.GetGraphics().PopClip();
 }
 
 void Application::Update(Controller& controller) {
+    FocusManager::GetInstance().Update();
+
     dispatcher->Execute(controller);
 
-    if (focus.TryLock()) {
-        OnInput(controller);
-        OnUpdate(controller);
+    // Dispatch events
+    EventStream stream(controller.GetInput());
+    while (stream.HasNext()) {
+        auto event = stream.Next();
+        root.OnEvent(*event);
+        editor.OnEvent(*event);
     }
 
-    OnRender(controller);
+    root.Layout();
+    editor.OnUpdate(controller);
+    editor.OnRender(controller);
+    root.OnRender(controller);
+
+    if (editor.NotFocused() || root.is_hover) {
+        DefaultCursor::Update(controller);
+    }
+
+    // Do frametime --------------------------------------------
+    frametime_counter.Update(controller.GetChronometer().GetDelta());
+    float avg_frametime = frametime_counter.GetAverage();
+    Core::Font& default_font = controller.GetFontManager().GetFont("default");
+    Core::FontGraphics font_graphics(controller.GetGraphics(), default_font);
+    std::string frametime_string = "Frametime: " + std::to_string(avg_frametime) + "s";
+    std::string fps_string = "FPS: " + std::to_string(1.0f / avg_frametime);
+    font_graphics.DrawString(Core::Color::GREEN, frametime_string, 0, 0);
+    font_graphics.DrawString(Core::Color::GREEN, fps_string, 0, 20);
 }
+
 } // namespace Cad

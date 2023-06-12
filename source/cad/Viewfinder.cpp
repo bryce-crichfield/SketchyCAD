@@ -42,27 +42,6 @@ void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry, 
     Core::Transform view_transform = GetViewTransform();
     Core::Transform inverse_transform = view_transform.Inverse();
 
-    // Draw the grid lines
-    // The idea is just draw all the pixels and then snap each one to the nearest grid line
-    // This is a lot easier than trying to figure out the grid lines in screen space
-    // and then drawing them directly, however; it is not very efficient and will
-    // need to be optimized later, as it is very slow for screen sizes
-    for (int x = 0; x < graphics.GetWidth(); x++) {
-        for (int y = 0; y < graphics.GetWidth(); y++) {
-            // Get the current world position
-            Core::Vector2 screen_pos = Core::Vector2(x, y);
-            Core::Vector2 world_pos = inverse_transform.Apply(screen_pos);
-
-            // Snap the world position to the grid
-            float grid_x = std::round(world_pos.x / grid_size) * grid_size;
-            float grid_y = std::round(world_pos.y / grid_size) * grid_size;
-            world_pos = Core::Vector2(grid_x, grid_y);
-            // Go back to screen space and draw the pixel
-            screen_pos = view_transform.Apply(world_pos);
-            graphics.SetPixel(Core::Color::GRAY, screen_pos.x, screen_pos.y);
-        }
-    }
-
     // If the mouse is scrolling then zoom in or out
     // also adjust the zoom based on the mouse position
     // so it appears to zoom in on the mouse position
@@ -87,10 +66,38 @@ void Viewfinder::Update(Core::Controller& controller, ObjectRegistry& registry, 
     } else {
         cursor->SetGridSnapped(false);
     }
-    // draw the raycast line
-    // controller.GetGraphics().DrawLine(Core::Color::WHITE, ray.x, ray.y, ray.x + ray.dx * 1000, ray.y + ray.dy * 1000);
     cursor->Update(controller, registry, view_transform, grid_size, ray_bank);
+}
 
+void Viewfinder::Render(Core::Controller& controller, ObjectRegistry& registry, RayBank& ray_bank)
+{
+    Core::Input& input = controller.GetInput();
+    Core::Graphics& graphics = controller.GetGraphics();
+
+    Core::Transform view_transform = GetViewTransform();
+    Core::Transform inverse_transform = view_transform.Inverse();
+
+    // Draw the grid lines
+    // The idea is just draw all the pixels and then snap each one to the nearest grid line
+    // This is a lot easier than trying to figure out the grid lines in screen space
+    // and then drawing them directly, however; it is not very efficient and will
+    // need to be optimized later, as it is very slow for screen sizes
+    float grid_spacing_screen = grid_size * scale;  // Added this optimization, helps a lot
+    for (int x = 0; x < graphics.GetWidth(); x += grid_spacing_screen) {
+        for (int y = 0; y < graphics.GetWidth(); y += grid_spacing_screen) {
+            // Get the current world position
+            Core::Vector2 screen_pos = Core::Vector2(x, y);
+            Core::Vector2 world_pos = inverse_transform.Apply(screen_pos);
+
+            // Snap the world position to the grid
+            float grid_x = std::round(world_pos.x / grid_size) * grid_size;
+            float grid_y = std::round(world_pos.y / grid_size) * grid_size;
+            world_pos = Core::Vector2(grid_x, grid_y);
+            // Go back to screen space and draw the pixel
+            screen_pos = view_transform.Apply(world_pos);
+            graphics.SetPixel(Core::Color::GRAY, screen_pos.x, screen_pos.y);
+        }
+    }
 }
 
 Core::Transform Viewfinder::GetViewTransform()

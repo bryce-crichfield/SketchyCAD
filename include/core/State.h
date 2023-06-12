@@ -15,7 +15,6 @@ struct State : public Controller {
     Graphics* graphics;
     Chronometer* chrono;
     FontManager* fonts;
-    Gui::StyleManager* style_manager;
 
     State() = default;
 
@@ -26,7 +25,6 @@ struct State : public Controller {
     Output& GetOutput() override { return *output; }
     Graphics& GetGraphics() override { return *graphics; }
     FontManager& GetFontManager() override { return *fonts; }
-    Gui::StyleManager& GetStyleManager() override { return *style_manager; }
 };
 
 struct StateBuilder {
@@ -66,16 +64,10 @@ struct StateBuilder {
         return *this;
     }
 
-    StateBuilder& SetStyleManager(Gui::StyleManager* style_manager)
-    {
-        state->style_manager = style_manager;
-        return *this;
-    }
-
     std::unique_ptr<State> Build()
     {
         // ensure that all fields are set
-        if (!state->chrono || !state->input || !state->output || !state->graphics || !state->fonts || !state->style_manager) {
+        if (!state->chrono || !state->input || !state->output || !state->graphics || !state->fonts) {
             throw std::runtime_error("StateBuilder: not all fields are set");
         }
         return std::move(state);

@@ -19,6 +19,8 @@ struct Controller : public Core::Controller {
         return controller.GetGraphics();
     }
 
+
+
     Core::Input& GetInput() override {
         return controller.GetInput();
     }
@@ -33,10 +35,6 @@ struct Controller : public Core::Controller {
 
     Core::FontManager& GetFontManager() override {
         return controller.GetFontManager();
-    }
-
-    Core::Gui::StyleManager& GetStyleManager() override {
-        return controller.GetStyleManager();
     }
 
     virtual Cad::ObjectRegistry& GetRegistry() { 

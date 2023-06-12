@@ -20,7 +20,6 @@ Program::Program(unsigned view_width, unsigned view_height, unsigned buffer_widt
 
     m_output = std::make_unique<BufferedOutput>();
     m_font_manager = std::make_unique<FontManager>();
-    m_style_manager = std::make_unique<Gui::StyleManager>();
 }
 
 void Program::Execute()
@@ -42,7 +41,6 @@ void Program::Execute()
         builder.SetGraphics(graphics.get());
         builder.SetOutput(m_output.get());
         builder.SetFontManager(m_font_manager.get());
-        builder.SetStyleManager(m_style_manager.get());
 
         std::unique_ptr<Controller> controller = builder.Build();
 

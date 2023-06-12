@@ -32,8 +32,9 @@ class ImageGraphics : public Graphics {
         DrawLine(color, x2, y2, x0, y0);
     }
     void DrawArc(Pixel color, float x, float y, float radius, float start_angle, float end_angle) override;
-    
+    void DrawImage(Image& image, float x, float y, float width, float height) override;
     void FillRect(Pixel color, unsigned x, unsigned y, unsigned width, unsigned height) override;
     void FillCircle(Pixel color, unsigned x, unsigned y, unsigned radius) override;
+    void FillTriangle(Pixel color, float x0, float y0, float x1, float y1, float x2, float y2) override;
 };
 } // namespace Core

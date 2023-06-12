@@ -1,68 +1,58 @@
 #pragma once
 
-#include <cad/Cad.h>
-#include <core/Core.h>
+#include <cad/gui/Component.h>
+#include <cad/gui/Focus.h>
 
-namespace Cad::Gui {
-struct TextField : public Core::Gui::Panel {
-    std::shared_ptr<Cad::Dispatcher> command_dispatcher;
+namespace Cad {
+
+struct TextField : public Component {
     Core::Typist typist;
-    std::string leader = "> ";
+    TextField();
+    void OnRender(Cad::Controller& controller) override {
+        auto& graphics = controller.GetGraphics();
 
-    TextField(std::shared_ptr<Cad::Dispatcher> dispatcher, unsigned width, unsigned height)
-        : command_dispatcher(dispatcher), Panel(width, height)
-    {
+        {
+            float x = position.x;
+            float y = position.y;
+            float width = size.x;
+            float height = size.y;
+            auto& graphics = controller.GetGraphics();
+            graphics.FillRect(style.background, x, y, width, height);
+            graphics.DrawRect(style.border, x, y, width, height);
+        }
+
+        auto& font = controller.GetFontManager().GetFont("default");
+        Core::FontGraphics font_graphics(graphics, font);
+        float char_width = font_graphics.GetDisplayWidth();
+        float width = size.x;
+        float str_width = char_width * typist.GetText().size();
+        str_width = std::min(str_width, width);
+
+        float x = position.x;
+        float y = position.y + size.y / 2 - char_width / 2;
+        float last_n_chars = str_width / char_width;
+        float start = typist.GetText().size() - last_n_chars;
+        start = std::max(start, 0.0f);
+        std::string display_text = typist.GetText().substr(start, typist.GetText().size());
+        font_graphics.DrawString(style.foreground, display_text, x, y);
     }
 
-    void OnInput(Core::Controller& controller) override
-    {
-        auto& output = controller.GetOutput();
-        typist.Update(controller);
+    Core::Typist& GetTypist() { return typist; }
+};
 
-        if (controller.GetInput().IsPressed(Core::Key::Enter)) {
-            output.Writeln(leader + typist.GetText());
-            command_dispatcher->Dispatch(typist.GetText(), output);
-            // assuming not nullptr because of single constructor
-            typist.Clear();
-        }
+struct TextFieldEventHandler : EventHandler {
+    TextField& text_field;
 
-        if (controller.GetInput().IsHeld(Core::Key::LControl) &&
-            controller.GetInput().IsPressed(Core::Key::Backspace)) {
-            typist.Clear();
-        }
+    TextFieldEventHandler(TextField& text_field) : text_field(text_field) {}
+
+    void Handle(MouseClickEvent& event) override {
+        auto& focus = FocusManager::GetInstance();
+        focus.RequestFocus(text_field);
     }
 
-    void OnUpdate(Core::Controller& state) override {}
-
-    void OnRender(Core::Controller& controller) override
-    {
-        float x = GetPosition().x;
-        float y = GetPosition().y;
-        float width = GetSize().x;
-        float height = GetSize().y;
-
-        Core::Font& font = controller.GetFontManager().GetFont("default");
-        font.GetGlyphWidth();
-        Core::FontGraphics font_graphics(controller.GetGraphics(), font);
-
-        // Draw background and border
-        controller.GetGraphics().FillRect(Core::Color::BLACK, x, y, width, height);
-        controller.GetGraphics().DrawLine(Core::Color::WHITE, x, y, x, y + height);
-        controller.GetGraphics().DrawLine(Core::Color::WHITE, x + width, y, x + width, y + height);
-        controller.GetGraphics().DrawLine(Core::Color::WHITE, x, y + height, x + width, y + height);
-
-        // Calculate the max text length, drop the first n characters if it is too long
-        unsigned font_size = font_graphics.GetDisplayWidth();
-        unsigned max_text_length = (width - font_size) / font_size;
-        std::string text = leader + typist.GetText();
-        if (text.length() > max_text_length) {
-            text = text.substr(text.length() - max_text_length, max_text_length);
-        }
-        // // Re-add the leader character
-        text = leader + text.substr(leader.length(), text.length() - leader.length());
-        float text_y = y + (height - font_size) / 2;
-        // // Draw the text at the center of the text field
-        font_graphics.DrawString(Core::Color::GREEN, text, x, text_y);
+    void Handle(TextInputEvent& event) override { 
+       // TODO: In order to adapt the Core classes, we need a way to provide a controller from within this context.
+       // I think it is time we consider making the core stuff static.  
     }
 };
-} // namespace Cad::Gui
+}

@@ -11,6 +11,12 @@ class Image {
     unsigned m_width, m_height;
 
   public:
+    enum class SampleMode {
+        NEAREST,
+        BILINEAR,
+        CUBIC,
+    };
+
     Image(unsigned width, unsigned height);
     ~Image();
 
@@ -19,7 +25,7 @@ class Image {
     unsigned GetHeight() const;
 
     Pixel GetPixel(unsigned x, unsigned y) const;
-    Pixel SamplePixel(float x, float y) const;
+    Pixel SamplePixel(float x, float y, SampleMode mode = SampleMode::NEAREST) const;
     void SetPixel(unsigned x, unsigned y, Pixel pixel);
     void Clear(const Pixel& pixel = Color::BLACK);
 };

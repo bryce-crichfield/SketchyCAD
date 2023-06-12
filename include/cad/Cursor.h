@@ -30,6 +30,7 @@ class Cursor {
     Cursor() = default;
     void Update(Core::Controller& controller, ObjectRegistry& registry, Core::Transform view_transform, float grid_size,
         RayBank& ray_bank);
+    
 
     Core::Vector2 GetWorldPosition() const { return Core::Vector2(x, y); }
     Core::Vector2 GetScreenPosition() const { return Core::Vector2(x, y); }

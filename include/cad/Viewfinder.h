@@ -23,6 +23,9 @@ class Viewfinder {
 
     Core::Vector2 GetCursor(Core::Controller& controller);
     void Update(Core::Controller& controller, ObjectRegistry& registry, RayBank& ray_bank);
+    void Render(Core::Controller& controller, ObjectRegistry& registry, RayBank& ray_bank);
     Core::Transform GetViewTransform();
+
+    
 };
 } // namespace Cad

@@ -3,7 +3,7 @@
 #include <cad/gui/Component.h>
 
 namespace Cad {
-struct wButton : public Component {
+struct Button : public Component {
     std::string text = "Button";
     Button();
     virtual ~Button() {}

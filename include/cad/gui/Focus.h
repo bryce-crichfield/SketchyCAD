@@ -16,5 +16,5 @@ struct FocusManager {
     void ReleaseFocus(Component& component);
     Component* GetFocusedComponent();
     void Update() { update_lock = false; }
-};ww
+};
 } // namespace Cad

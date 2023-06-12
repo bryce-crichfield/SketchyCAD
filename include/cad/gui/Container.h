@@ -20,7 +20,7 @@ struct Container : public Component {
 
     Direction direction = Direction::Vertical;
     Alignment alignment = Alignment::Start;
-ww
+
     void OnEvent(Event& event) override {
         event.Handle(*this);
         if (event.IsHandled()) {

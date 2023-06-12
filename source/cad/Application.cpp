@@ -338,16 +338,7 @@ struct CircleModeButtonHandler : EventHandler {
     }
 };
 
-struct BetterButton : public Button {
-    BetterButton(std::string text) {
-        this->text = text;
-    }
 
-    void OnClick() override {
-        auto& focus_manager = FocusManager::GetInstance();
-        focus_manager.RequestFocus(*this);
-    }
-};
 
 Application::Application() {
     registry = std::make_unique<ObjectRegistry>();
@@ -363,17 +354,17 @@ Application::Application() {
     minimap->size = Core::Vector2(200, 200);
     root.Insert(std::move(minimap));
 
-    auto line_button = std::make_unique<Button>();
-    line_button->text = "Line";
-    line_button->size = Core::Vector2(50, 20);
-    line_button->handlers.push_back(std::make_unique<LineModeButtonHandler>(editor));
-    root.Insert(std::move(line_button));
+    // auto line_button = std::make_unique<Button>();
+    // line_button->text = "Line";
+    // line_button->size = Core::Vector2(50, 20);
+    // line_button->handlers.push_back(std::make_unique<LineModeButtonHandler>(editor));
+    // root.Insert(std::move(line_button));
 
-    auto circle_button = std::make_unique<Button>();
-    circle_button->text = "Circle";
-    circle_button->size = Core::Vector2(50, 20);
-    circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
-    root.Insert(std::move(circle_button));
+    // auto circle_button = std::make_unique<Button>();
+    // circle_button->text = "Circle";
+    // circle_button->size = Core::Vector2(50, 20);
+    // circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
+    // root.Insert(std::move(circle_button));
 
 }
 

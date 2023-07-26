@@ -6,3 +6,4 @@
     - Command line interface with custom shell bindings
 ### Random Demonstration:
 ![](https://github.com/bryce-crichfield/computer-aided-drawing/blob/master/demo.gif)
+![](https://github.com/bryce-crichfield/computer-aided-drawing/blob/master/demo2.gif)

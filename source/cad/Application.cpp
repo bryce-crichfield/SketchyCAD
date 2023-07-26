@@ -343,7 +343,18 @@ struct CircleModeButtonHandler : EventHandler {
     }
 };
 
+struct GridToggleButtonHandler : EventHandler {
+    bool is_grid_on = false;
+    Cursor& cursor;
 
+    GridToggleButtonHandler(Cursor& cursor) : cursor(cursor) {}
+
+    void Handle(MouseClickEvent& event) override {
+        // toggle the grid
+        is_grid_on = !is_grid_on;
+        cursor.SetGridSnapped(is_grid_on);
+    }
+};
 
 Application::Application() {
     registry = std::make_unique<ObjectRegistry>();
@@ -359,6 +370,12 @@ Application::Application() {
     minimap->size = Core::Vector2(200, 200);
     root.Insert(std::move(minimap));
 
+
+    auto spacer = std::make_unique<Container>();
+    spacer->size = Core::Vector2(200, 300);
+    root.Insert(std::move(spacer));
+
+
     auto line_button = std::make_unique<Button>();
     line_button->text = "Line";
     line_button->size = Core::Vector2(50, 20);
@@ -370,6 +387,12 @@ Application::Application() {
     circle_button->size = Core::Vector2(50, 20);
     circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
     root.Insert(std::move(circle_button));
+
+    auto grid_button = std::make_unique<Button>();
+    grid_button->text = "Grid";
+    grid_button->size = Core::Vector2(50, 20);
+    grid_button->handlers.push_back(std::make_unique<GridToggleButtonHandler>(viewfinder->GetCursor()));
+    root.Insert(std::move(grid_button));
 
 }
 

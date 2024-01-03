@@ -8,7 +8,7 @@ Welcome to DidactiCAD (Computer Aided Drawing) - An application designed to expl
 
 ### 1. Software Renderer
 
-Our CAD application comes equipped with a powerful software renderer that allows users to create detailed and realistic 2D renderings of their designs. The renderer supports various rendering techniques, shading models, and lighting effects to bring your drafts to life.
+Our CAD application comes equipped with a powerful software renderer that allows users to create detailed 2D renderings of their designs. The renderer supports various rendering techniques including vector graphics and text and font rendering.
 
 ### 2. Interactive User Interface
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Welcome to DidactiCAD (Computer Aided Drawing) - An application designed to explore the process development of computer-aided design with a focus on a software renderer. This application provides a platform for users to create and visualize digital drawings, schematics, and designs in an intuitive and user-friendly environment.  From the Greek *didactikos* meaning "pertaining to teaching or instruction", DidactiCAD was built to explore the process of application development without the use of any supporting software or dependencies.
+Welcome to DidactiCAD (Computer Aided Drawing) - An application designed to explore the process development of computer-aided design with a focus on a software renderer. This application provides a platform for users to create and visualize digital drawings, schematics, and designs in an intuitive and user-friendly environment.  From the Greek *didactikos* meaning "pertaining to teaching or instruction", DidactiCAD was built to explore the process of application development without the use of any supporting software or dependencies.  Although not intended for practical use, the development of DidacticCAD proved to be a challenging and rewarding endeavor resulting in software à la the later 1980s.
 
 ## Features
 

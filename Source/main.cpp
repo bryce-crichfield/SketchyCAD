@@ -40,7 +40,7 @@ struct CadProgram : public Core::Program {
     CadProgram() : cad(), Program(1300, 1300, VIEW_SIZE_WIDTH, VIEW_SIZE_HEIGHT) {}
 
     void OnStart(Core::Controller& controller) override {
-        controller.GetFontManager().LoadFont("default", "../assets/font/dogica.bin", 8);
+        controller.GetFontManager().LoadFont("default", "../Assets/Font/dogica.bin", 8);
         Cad::Controller cad_controller = cad.CreateController(controller);
 
         cad.OnStart(cad_controller);

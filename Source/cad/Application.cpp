@@ -75,11 +75,9 @@ struct SelectionVisitor : public ObjectVisitor {
         auto& start = object.start;
         auto& end = object.end;
         if (start.x > topleft.x && start.x < topleft.x + width && start.y > topleft.y && start.y < topleft.y + height) {
-            std::cout << "Selecting line" << std::endl;
             object.Select();
         }
         if (end.x > topleft.x && end.x < topleft.x + width && end.y > topleft.y && end.y < topleft.y + height) {
-            std::cout << "Selecting line" << std::endl;
             object.Select();
         }
     }
@@ -90,7 +88,6 @@ struct SelectionVisitor : public ObjectVisitor {
         float radius = object.radius;
         if (center.x - radius > topleft.x && center.x + radius < topleft.x + width && center.y - radius > topleft.y &&
             center.y + radius < topleft.y + height) {
-            std::cout << "Selecting circle" << std::endl;
             object.Select();
         }
     }
@@ -169,8 +166,6 @@ struct LineCreateHandler : public InputHandler {
     std::vector<Ray> rays;
 
     void OnInput(Cad::Controller& controller) {
-        std::cout << "LineCreateHandler" << std::endl;
-
         auto& input = controller.GetInput();
         auto cursor = controller.GetViewfinder().GetCursor(controller);
         auto transform = controller.GetViewfinder().GetViewTransform();
@@ -183,6 +178,7 @@ struct LineCreateHandler : public InputHandler {
         if (input.IsPressed(Core::Key::Escape) || input.IsPressed(Core::Key::Space)) {
             points = std::stack<Core::Vector2>();
             rays = std::vector<Ray>();
+
         }
 
         if (input.IsPressed(Core::Key::Up)) {
@@ -322,91 +318,12 @@ struct TranslateModeHandler : public InputHandler {
     }
 };
 
-struct LineModeButtonHandler : EventHandler {
-    Editor& editor;
-
-    LineModeButtonHandler(Editor& editor) : editor(editor) {}
-
-    void Handle(MouseClickEvent& event) override { 
-        editor.SetInputHandler<LineCreateHandler>();
-        
-    }
-};
-
-struct CircleModeButtonHandler : EventHandler {
-    Editor& editor;
-
-    CircleModeButtonHandler(Editor& editor) : editor(editor) {}
-
-    void Handle(MouseClickEvent& event) override {
-        editor.SetInputHandler<CreateCircleHandler>();
-    }
-};
-
-struct GridToggleButtonHandler : EventHandler {
-    bool is_grid_on = false;
-    Cursor& cursor;
-
-    GridToggleButtonHandler(Cursor& cursor) : cursor(cursor) {}
-
-    void Handle(MouseClickEvent& event) override {
-        // toggle the grid
-        is_grid_on = !is_grid_on;
-        cursor.SetGridSnapped(is_grid_on);
-    }
-};
-
-Application::Application() {
-    registry = std::make_unique<ObjectRegistry>();
-    viewfinder = std::make_unique<Viewfinder>();
-    dispatcher = std::make_shared<Dispatcher>();
-    ray_bank = std::make_unique<RayBank>();
-
-    root.position = Core::Vector2(0, 0);
-    root.size = Core::Vector2(200, 275);
-
-
-    auto minimap = std::make_unique<Minimap>();
-    minimap->size = Core::Vector2(200, 200);
-    root.Insert(std::move(minimap));
-
-
-    auto spacer = std::make_unique<Container>();
-    spacer->size = Core::Vector2(200, 300);
-    root.Insert(std::move(spacer));
-
-
-    auto line_button = std::make_unique<Button>();
-    line_button->text = "Line";
-    line_button->size = Core::Vector2(50, 20);
-    line_button->handlers.push_back(std::make_unique<LineModeButtonHandler>(editor));
-    root.Insert(std::move(line_button));
-
-    auto circle_button = std::make_unique<Button>();
-    circle_button->text = "Circle";
-    circle_button->size = Core::Vector2(50, 20);
-    circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
-    root.Insert(std::move(circle_button));
-
-    auto grid_button = std::make_unique<Button>();
-    grid_button->text = "Grid";
-    grid_button->size = Core::Vector2(50, 20);
-    grid_button->handlers.push_back(std::make_unique<GridToggleButtonHandler>(viewfinder->GetCursor()));
-    root.Insert(std::move(grid_button));
-
-}
-
 void Application::OnStart(Controller& controller) {
     editor.OnStart(controller);
 
     viewfinder->Zero(controller);
     viewfinder->Pan(0, 0);
-
-    CircleObjectBuilder circle(Core::Vector2(0, 0), 1);
-    registry->CreateObject(circle);
-
-    LineObjectBuilder line(Core::Vector2(2, 2), Core::Vector2(4, 1));
-    registry->CreateObject(line);
+    viewfinder->Zoom(10);
 }
 
 struct CopyVisitor : ObjectVisitor {
@@ -475,8 +392,7 @@ void Editor::OnUpdate(Cad::Controller& controller) {
     if (input_handler != nullptr) {
         if (idle) {
             idle = false;
-        }
-        else {
+        } else {
             input_handler->OnInput(controller);
         }
     }
@@ -512,6 +428,13 @@ void Editor::OnUpdate(Cad::Controller& controller) {
         AreSelectedPredicate predicate;
         auto selected = controller.GetRegistry().QueryObjects(predicate);
         controller.GetRegistry().DeleteObjects(selected);
+    }
+
+    if (input.IsPressed(Core::Key::Escape)) {
+        input_handler = std::make_unique<NoOpInputHandler>();
+
+        DeselectAllVisitor visitor;
+        controller.GetRegistry().VisitObjects(visitor);
     }
 
     auto& registry = controller.GetRegistry();
@@ -558,13 +481,131 @@ void Application::Update(Controller& controller) {
 
     // Do frametime --------------------------------------------
     frametime_counter.Update(controller.GetChronometer().GetDelta());
-    float avg_frametime = frametime_counter.GetAverage();
+    float avg_frametime = frametime_counter.GetAverage() * 1000;
     Core::Font& default_font = controller.GetFontManager().GetFont("default");
     Core::FontGraphics font_graphics(controller.GetGraphics(), default_font);
-    std::string frametime_string = "Frametime: " + std::to_string(avg_frametime) + "s";
-    std::string fps_string = "FPS: " + std::to_string(1.0f / avg_frametime);
+
+    // format the average frametime to 2 decimal places
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << avg_frametime;
+    std::string text = ss.str();
+    std::string frametime_string = "Delta: " + text + "ms";
+
+    ss.clear();
+    ss.str("");
+    ss << std::fixed << std::setprecision(2) << 1.0f / (avg_frametime / 1000.0f);
+    text = ss.str();
+    std::string fps_string = "FPS: " + text;
+
     font_graphics.DrawString(Core::Color::GREEN, frametime_string, 0, 0);
     font_graphics.DrawString(Core::Color::GREEN, fps_string, 0, 20);
 }
 
+struct SelectButtonHandler : EventHandler {
+    Editor& editor;
+
+    SelectButtonHandler(Editor& editor) : editor(editor) {}
+
+    void Handle(MouseClickEvent& event) override { editor.SetInputHandler<SelectionModeHandler>(); }
+};
+
+struct TranslateButtonHandler : EventHandler {
+    Editor& editor;
+
+    TranslateButtonHandler(Editor& editor) : editor(editor) {}
+
+    void Handle(MouseClickEvent& event) override { editor.SetInputHandler<TranslateModeHandler>(); }
+};
+
+struct CopyButtonHandler : EventHandler {
+    Editor& editor;
+
+    CopyButtonHandler(Editor& editor) : editor(editor) {}
+
+    void Handle(MouseClickEvent& event) override { editor.SetInputHandler<CopyInputHandler>(); }
+};
+
+struct LineModeButtonHandler : EventHandler {
+    Editor& editor;
+
+    LineModeButtonHandler(Editor& editor) : editor(editor) {}
+
+    void Handle(MouseClickEvent& event) override { editor.SetInputHandler<LineCreateHandler>(); }
+};
+
+struct CircleModeButtonHandler : EventHandler {
+    Editor& editor;
+
+    CircleModeButtonHandler(Editor& editor) : editor(editor) {}
+
+    void Handle(MouseClickEvent& event) override { editor.SetInputHandler<CreateCircleHandler>(); }
+};
+
+struct GridToggleButtonHandler : EventHandler {
+    bool is_grid_on = false;
+    Cursor& cursor;
+
+    GridToggleButtonHandler(Cursor& cursor) : cursor(cursor) {}
+
+    void Handle(MouseClickEvent& event) override {
+        // toggle the grid
+        is_grid_on = !is_grid_on;
+        cursor.SetGridSnapped(is_grid_on);
+    }
+};
+
+Application::Application() {
+    registry = std::make_unique<ObjectRegistry>();
+    viewfinder = std::make_unique<Viewfinder>();
+    dispatcher = std::make_shared<Dispatcher>();
+    ray_bank = std::make_unique<RayBank>();
+
+    root.position = Core::Vector2(0, 280);
+    root.size = Core::Vector2(200, 275);
+    root.direction = Direction::Horizontal;
+
+    auto minimap = std::make_unique<Minimap>();
+    minimap->size = Core::Vector2(200, 200);
+    // root.Insert(std::move(minimap));
+
+    auto spacer = std::make_unique<Container>();
+    spacer->size = Core::Vector2(200, 0);
+    // root.Insert(std::move(spacer));
+
+    auto select_button = std::make_unique<Button>();
+    select_button->text = "Select";
+    select_button->size = Core::Vector2(65, 20);
+    select_button->handlers.push_back(std::make_unique<SelectButtonHandler>(editor));
+    root.Insert(std::move(select_button));
+
+    auto translate_button = std::make_unique<Button>();
+    translate_button->text = "Move";
+    translate_button->size = Core::Vector2(65, 20);
+    translate_button->handlers.push_back(std::make_unique<TranslateButtonHandler>(editor));
+    root.Insert(std::move(translate_button));
+
+    auto copy_button = std::make_unique<Button>();
+    copy_button->text = "Copy";
+    copy_button->size = Core::Vector2(65, 20);
+    copy_button->handlers.push_back(std::make_unique<CopyButtonHandler>(editor));
+    root.Insert(std::move(copy_button));
+
+    auto line_button = std::make_unique<Button>();
+    line_button->text = "Line";
+    line_button->size = Core::Vector2(65, 20);
+    line_button->handlers.push_back(std::make_unique<LineModeButtonHandler>(editor));
+    root.Insert(std::move(line_button));
+
+    auto circle_button = std::make_unique<Button>();
+    circle_button->text = "Circle";
+    circle_button->size = Core::Vector2(65, 20);
+    circle_button->handlers.push_back(std::make_unique<CircleModeButtonHandler>(editor));
+    root.Insert(std::move(circle_button));
+
+    auto grid_button = std::make_unique<Button>();
+    grid_button->text = "Grid";
+    grid_button->size = Core::Vector2(65, 20);
+    grid_button->handlers.push_back(std::make_unique<GridToggleButtonHandler>(viewfinder->GetCursor()));
+    root.Insert(std::move(grid_button));
+}
 } // namespace Cad

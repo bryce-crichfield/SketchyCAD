@@ -72,7 +72,6 @@ struct EditorHandler : public EventHandler {
     Editor& editor;
     EditorHandler(Editor& editor) : editor(editor) {}
     void Handle(MouseClickEvent& event) override {
-        std::cout << "MouseClickEvent: " << event.x << ", " << event.y << ", " << std::endl;
         auto& focus = FocusManager::GetInstance();
         focus.RequestFocus(editor);
     }

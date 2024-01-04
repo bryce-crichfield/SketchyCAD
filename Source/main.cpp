@@ -4,8 +4,8 @@
 // #include <app/Commands.h>
 #include <cad/gui/Gui.h>
 
-#define VIEW_SIZE_WIDTH 700
-#define VIEW_SIZE_HEIGHT 700
+#define VIEW_SIZE_WIDTH 400
+#define VIEW_SIZE_HEIGHT 300
 
 struct HelpCommand : public Cad::Command {
     std::shared_ptr<Cad::Dispatcher> dispatcher;
@@ -37,7 +37,7 @@ struct HelpCommand : public Cad::Command {
 struct CadProgram : public Core::Program {
     Cad::Application cad;
 
-    CadProgram() : cad(), Program(1300, 1300, VIEW_SIZE_WIDTH, VIEW_SIZE_HEIGHT) {}
+    CadProgram() : cad(), Program(VIEW_SIZE_WIDTH*2, VIEW_SIZE_HEIGHT*2, VIEW_SIZE_WIDTH, VIEW_SIZE_HEIGHT) {}
 
     void OnStart(Core::Controller& controller) override {
         controller.GetFontManager().LoadFont("default", "../Assets/Font/dogica.bin", 8);

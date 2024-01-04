@@ -71,7 +71,6 @@ struct ZoomCommand : public Cad::Command {
     ZoomCommand(float z) : z(z) { }
 
     void Forward(Cad::Controller& cad) override {
-        std::cout << "zoom" << std::endl;
         cad.GetViewfinder().Zoom(z);
     }
 

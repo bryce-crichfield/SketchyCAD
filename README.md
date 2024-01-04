@@ -28,5 +28,5 @@ This CAD application is released under the [GNU GPL License](LICENSE.md). Feel f
 
 Happy drafting!
 
-### Demonstration:
+## Demonstration:
 ![](https://github.com/bryce-crichfield/computer-aided-drawing/blob/master/demo.gif)

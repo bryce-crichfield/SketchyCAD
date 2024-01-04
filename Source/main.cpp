@@ -37,7 +37,7 @@ struct HelpCommand : public Cad::Command {
 struct CadProgram : public Core::Program {
     Cad::Application cad;
 
-    CadProgram() : cad(), Program(VIEW_SIZE_WIDTH*2, VIEW_SIZE_HEIGHT*2, VIEW_SIZE_WIDTH, VIEW_SIZE_HEIGHT) {}
+    CadProgram() : cad(), Program(VIEW_SIZE_WIDTH*4, VIEW_SIZE_HEIGHT*4, VIEW_SIZE_WIDTH, VIEW_SIZE_HEIGHT) {}
 
     void OnStart(Core::Controller& controller) override {
         controller.GetFontManager().LoadFont("default", "../Assets/Font/dogica.bin", 8);

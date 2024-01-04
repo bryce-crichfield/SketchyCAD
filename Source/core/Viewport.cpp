@@ -4,8 +4,8 @@
 #include <algorithm>
 #include <iostream>
 
-#include <glad/glad.h>
-#include <glfw/glfw3.h>
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
 
 namespace Core {
 
@@ -116,11 +116,13 @@ Viewport::Viewport(unsigned width, unsigned height, unsigned viewarea_width, uns
 
     glfwMakeContextCurrent((GLFWwindow *)m_data);
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK)
     {
         glfwTerminate();
-        throw std::string("Failed to initialize GLAD");
+        throw std::string("Failed to initialize GLEW");
     }
+
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glEnable(GL_TEXTURE_2D);

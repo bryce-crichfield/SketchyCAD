@@ -1,20 +1,21 @@
-project(cad)
+project(DidactiCAD)
 
 cmake_minimum_required(VERSION 3.17)
 
-include_directories("include")
-include_directories("ext/inc")
-file(GLOB_RECURSE SOURCES "source/*.cpp")
-
-#add optimization flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+include_directories("Include")
 
-add_executable(exe ${SOURCES} "demo.cpp")
-target_link_libraries(exe "${CMAKE_SOURCE_DIR}/ext/bin/libglfw3.a")
-target_link_libraries(exe "${CMAKE_SOURCE_DIR}/ext/bin/libglad.a")
-target_link_libraries(exe m X11 stdc++ GL)
+file(GLOB_RECURSE SOURCES "Source/*.cpp")
+add_executable(DidactiCAD ${SOURCES})
 
-set_target_properties(exe PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
-)
+find_package(OpenGL REQUIRED)
+target_link_libraries(DidactiCAD OpenGL::GL)
+
+find_package(glfw3 REQUIRED)
+target_link_libraries(DidactiCAD glfw)
+
+find_package(GLEW REQUIRED)
+target_link_libraries(DidactiCAD GLEW::GLEW)
+
+target_link_libraries(DidactiCAD stdc++)
